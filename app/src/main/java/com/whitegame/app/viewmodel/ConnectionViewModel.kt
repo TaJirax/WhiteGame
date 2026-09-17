@@ -263,6 +263,14 @@ class ConnectionViewModel @Inject constructor(
 
     fun parsedXray(t: SavedTunnel): XrayConfig.Parsed? = if (!t.isXray) null else runCatching { t.parseXray() }.getOrNull()
 
+    /**
+     * Whether a saved tunnel still reads back. [parsed] returns null for every Xray tunnel by
+     * design -- an Xray link has no AwgConfig -- so the row cannot use it to judge validity
+     * without calling all of them broken.
+     */
+    fun isValid(t: SavedTunnel): Boolean =
+        if (t.isXray) parsedXray(t) != null else parsed(t) != null
+
     /** Keys the AmneziaWG engine will not use, so the editor can say so instead of dropping them silently. */
     fun ignoredKeys(confText: String): List<String> =
         if (XrayConfig.looksLikeXray(confText)) emptyList()

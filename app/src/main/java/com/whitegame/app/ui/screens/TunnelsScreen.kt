@@ -187,6 +187,7 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
                         selected = t.id == vm.selectedId,
                         expanded = expandedId == t.id,
                         config = remember(t.confText) { vm.parsed(t) },
+                        valid = remember(t.confText) { vm.isValid(t) },
                         onSelect = { vm.select(t.id) },
                         onToggleDetail = { expandedId = if (expandedId == t.id) null else t.id },
                         onEdit = { editing = EditorTarget.Existing(t) },
@@ -326,6 +327,7 @@ private fun TunnelRow(
     selected: Boolean,
     expanded: Boolean,
     config: AwgConfig?,
+    valid: Boolean,
     onSelect: () -> Unit,
     onToggleDetail: () -> Unit,
     onEdit: () -> Unit,
@@ -359,12 +361,12 @@ private fun TunnelRow(
                     Spacer(Modifier.width(Space.sm))
                     StatusPill(
                         tunnel.kind.label,
-                        if (config == null) Quality.Bad else Quality.Unknown
+                        if (!valid) Quality.Bad else Quality.Unknown
                     )
                 }
                 Spacer(Modifier.height(3.dp))
                 Text(
-                    if (config == null) "Config no longer parses — open to fix it"
+                    if (!valid) "Config no longer parses — open to fix it"
                     else tunnel.endpoint.ifBlank { "no endpoint" },
                     color = Trace3, style = Type.monoSm,
                     maxLines = 1, overflow = TextOverflow.Ellipsis
@@ -381,9 +383,16 @@ private fun TunnelRow(
         ) {
             Column(Modifier.padding(bottom = Space.sm)) {
                 Hairline()
-                if (config == null) {
+                if (!valid) {
                     Notice(
                         "This profile could not be read. Open it and correct the config.",
+                        Modifier.padding(horizontal = Space.lg, vertical = Space.md)
+                    )
+                } else if (config == null) {
+                    // Valid, but the rows below are WireGuard interface fields an Xray link
+                    // has no equivalent of.
+                    Notice(
+                        "Xray profile. Open it to view or edit the link.",
                         Modifier.padding(horizontal = Space.lg, vertical = Space.md)
                     )
                 } else {
