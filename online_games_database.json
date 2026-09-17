@@ -1,0 +1,4514 @@
+{
+  "categories": [
+    "FPS",
+    "Battle Royale",
+    "Survival",
+    "Sandbox",
+    "MMO",
+    "MOBA",
+    "Sports",
+    "Racing",
+    "Fighting",
+    "Horror",
+    "Party",
+    "Strategy",
+    "Mobile",
+    "Other"
+  ],
+  "games": [
+    {
+      "name": "Counter-Strike 2",
+      "category": "FPS",
+      "tcp_ports": [
+        "27015-27050"
+      ],
+      "udp_ports": [
+        "27000-27100"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "steamcommunity.com",
+        "api.steampowered.com",
+        "cm.steampowered.com"
+      ]
+    },
+    {
+      "name": "Valorant",
+      "category": "FPS",
+      "tcp_ports": [
+        "2099",
+        "5222-5223",
+        "8088",
+        "8393-8400"
+      ],
+      "udp_ports": [
+        "7000-8000",
+        "8088"
+      ],
+      "platforms": [
+        "Riot"
+      ],
+      "test_endpoints": [
+        "riotgames.com",
+        "authenticate.riotgames.com",
+        "clientconfig.rpg.riotgames.com"
+      ]
+    },
+    {
+      "name": "Rainbow Six Siege",
+      "category": "FPS",
+      "tcp_ports": [
+        "13000",
+        "13005",
+        "13200",
+        "14001"
+      ],
+      "udp_ports": [
+        "6015"
+      ],
+      "platforms": [
+        "Ubisoft",
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "ubisoft.com",
+        "connection.ubisoft.com",
+        "prod.game-service.ubisoft.com"
+      ]
+    },
+    {
+      "name": "Overwatch 2",
+      "category": "FPS",
+      "tcp_ports": [
+        "1119",
+        "3724",
+        "6113"
+      ],
+      "udp_ports": [
+        "3478-3479",
+        "5060",
+        "5062",
+        "6250",
+        "12000-64000"
+      ],
+      "platforms": [
+        "Battle.net"
+      ],
+      "test_endpoints": [
+        "battle.net",
+        "us.battle.net",
+        "eu.battle.net",
+        "overwatch.blizzard.com"
+      ]
+    },
+    {
+      "name": "Call of Duty: Warzone",
+      "category": "Battle Royale",
+      "tcp_ports": [
+        "3074"
+      ],
+      "udp_ports": [
+        "3074",
+        "3478",
+        "4379-4380",
+        "27000-27031"
+      ],
+      "platforms": [
+        "Battle.net",
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "callofduty.com",
+        "battle.net",
+        "cod.blizzard.com",
+        "profile.callofduty.com"
+      ]
+    },
+    {
+      "name": "Call of Duty: Modern Warfare",
+      "category": "FPS",
+      "tcp_ports": [
+        "3074"
+      ],
+      "udp_ports": [
+        "3074",
+        "3478",
+        "4379-4380"
+      ],
+      "platforms": [
+        "Battle.net",
+        "Steam"
+      ],
+      "test_endpoints": [
+        "callofduty.com",
+        "battle.net",
+        "cod.blizzard.com"
+      ]
+    },
+    {
+      "name": "Apex Legends",
+      "category": "Battle Royale",
+      "tcp_ports": [
+        "1024-1124",
+        "9960-9969",
+        "18000",
+        "18060",
+        "18120",
+        "27900",
+        "28910",
+        "29900"
+      ],
+      "udp_ports": [
+        "1024-1124",
+        "18000",
+        "29900",
+        "37000-40000"
+      ],
+      "platforms": [
+        "EA",
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "ea.com",
+        "accounts.ea.com",
+        "apex.ea.com",
+        "r5-pc.stryder.respawn.com"
+      ]
+    },
+    {
+      "name": "Fortnite",
+      "category": "Battle Royale",
+      "tcp_ports": [
+        "5222",
+        "5795-5847"
+      ],
+      "udp_ports": [
+        "5222",
+        "5795-5847",
+        "12000-65000"
+      ],
+      "platforms": [
+        "Epic",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Android",
+        "iOS"
+      ],
+      "test_endpoints": [
+        "epicgames.com",
+        "account-public-service-prod.ol.epicgames.com",
+        "fortnite-public-service-prod.ol.epicgames.com"
+      ]
+    },
+    {
+      "name": "PUBG: Battlegrounds",
+      "category": "Battle Royale",
+      "tcp_ports": [
+        "27015",
+        "27036"
+      ],
+      "udp_ports": [
+        "4380",
+        "27000-27031"
+      ],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "pubg.com",
+        "api.pubg.com",
+        "prod-live-front.playbattlegrounds.com"
+      ]
+    },
+    {
+      "name": "PUBG Mobile",
+      "category": "Mobile",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS"
+      ],
+      "test_endpoints": [
+        "pubgmobile.com",
+        "sg.pubgmobile.com"
+      ]
+    },
+    {
+      "name": "Destiny 2",
+      "category": "FPS",
+      "tcp_ports": [
+        "1119-1120",
+        "3074",
+        "3724",
+        "4000",
+        "6112-6114"
+      ],
+      "udp_ports": [
+        "1119-1120",
+        "3074",
+        "3097-3196",
+        "3724",
+        "4000",
+        "6112-6114",
+        "27015-27200"
+      ],
+      "platforms": [
+        "Steam",
+        "Epic",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "bungie.net",
+        "www.bungie.net",
+        "api.bungie.net"
+      ]
+    },
+    {
+      "name": "Battlefield series",
+      "category": "FPS",
+      "tcp_ports": [
+        "5222",
+        "9988",
+        "17502",
+        "20000-20100",
+        "22990"
+      ],
+      "udp_ports": [
+        "3659",
+        "14000-14016",
+        "22990-23006",
+        "25200-25300"
+      ],
+      "platforms": [
+        "EA",
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "ea.com",
+        "accounts.ea.com",
+        "battlefield.com"
+      ]
+    },
+    {
+      "name": "Team Fortress 2",
+      "category": "FPS",
+      "tcp_ports": [
+        "27015"
+      ],
+      "udp_ports": [
+        "27015"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "steamcommunity.com",
+        "api.steampowered.com"
+      ]
+    },
+    {
+      "name": "Paladins",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [
+        "9000-9999"
+      ],
+      "platforms": [
+        "Steam",
+        "Epic",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "hirezstudios.com",
+        "api.paladins.com"
+      ]
+    },
+    {
+      "name": "Hunt: Showdown",
+      "category": "FPS",
+      "tcp_ports": [
+        "61088",
+        "20000-20099"
+      ],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "huntshowdown.com",
+        "crytek.com"
+      ]
+    },
+    {
+      "name": "The Finals",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Epic",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "embark-studios.com",
+        "thefinals.com"
+      ]
+    },
+    {
+      "name": "XDefiant",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Ubisoft",
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "ubisoft.com",
+        "xdefiant.ubisoft.com"
+      ]
+    },
+    {
+      "name": "World of Tanks",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Wargaming",
+        "Steam"
+      ],
+      "test_endpoints": [
+        "wargaming.net",
+        "worldoftanks.eu",
+        "worldoftanks.com"
+      ]
+    },
+    {
+      "name": "World of Warships",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Wargaming",
+        "Steam"
+      ],
+      "test_endpoints": [
+        "wargaming.net",
+        "worldofwarships.eu"
+      ]
+    },
+    {
+      "name": "War Thunder",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Gaijin",
+        "Steam"
+      ],
+      "test_endpoints": [
+        "warthunder.com",
+        "gaijin.net",
+        "login.gaijin.net"
+      ]
+    },
+    {
+      "name": "Crossfire",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": [
+        "crossfire.z8games.com"
+      ]
+    },
+    {
+      "name": "Point Blank",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Insurgency: Sandstorm",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [
+        "27102",
+        "27131"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "newworldinteractive.com"
+      ]
+    },
+    {
+      "name": "Squad",
+      "category": "FPS",
+      "tcp_ports": [
+        "21114"
+      ],
+      "udp_ports": [
+        "7787",
+        "27165"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "joinsquad.com"
+      ]
+    },
+    {
+      "name": "Hell Let Loose",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "hellletloose.com"
+      ]
+    },
+    {
+      "name": "Arma 3",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [
+        "2302-2305"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "arma3.com",
+        "bistudio.com"
+      ]
+    },
+    {
+      "name": "Arma Reforger",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox"
+      ],
+      "test_endpoints": [
+        "arma3.com",
+        "bistudio.com"
+      ]
+    },
+    {
+      "name": "Escape from Tarkov",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Battlestate"
+      ],
+      "test_endpoints": [
+        "escapefromtarkov.com",
+        "prod.escapefromtarkov.com",
+        "launcher.escapefromtarkov.com"
+      ]
+    },
+    {
+      "name": "Gray Zone Warfare",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "grayzonewarfare.com"
+      ]
+    },
+    {
+      "name": "Delta Force Hawk Ops",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": [
+        "deltaforce.garena.com"
+      ]
+    },
+    {
+      "name": "Deep Rock Galactic",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "deeprockgalactic.com"
+      ]
+    },
+    {
+      "name": "Left 4 Dead 2",
+      "category": "FPS",
+      "tcp_ports": [
+        "27015"
+      ],
+      "udp_ports": [
+        "27015"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "steamcommunity.com"
+      ]
+    },
+    {
+      "name": "Back 4 Blood",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "back4blood.com"
+      ]
+    },
+    {
+      "name": "Payday 2",
+      "category": "FPS",
+      "tcp_ports": [
+        "9899"
+      ],
+      "udp_ports": [
+        "9899"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "paydaythegame.com"
+      ]
+    },
+    {
+      "name": "Payday 3",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Epic"
+      ],
+      "test_endpoints": [
+        "paydaythegame.com"
+      ]
+    },
+    {
+      "name": "Ready or Not",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "voidinteractive.net"
+      ]
+    },
+    {
+      "name": "GTFO",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "gtfothegame.com"
+      ]
+    },
+    {
+      "name": "Risk of Rain 2",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "hopoo-games.com"
+      ]
+    },
+    {
+      "name": "Gunfire Reborn",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "gunfirereborn.com"
+      ]
+    },
+    {
+      "name": "Dead by Daylight",
+      "category": "Horror",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Epic",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "deadbydaylight.com",
+        "bhvr.com"
+      ]
+    },
+    {
+      "name": "Phasmophobia",
+      "category": "Horror",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "kineticgames.co.uk"
+      ]
+    },
+    {
+      "name": "Lethal Company",
+      "category": "Horror",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Content Warning",
+      "category": "Horror",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "R.E.P.O.",
+      "category": "Horror",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Among Us",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Epic",
+        "Android",
+        "iOS",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "innersloth.com",
+        "amongus.com"
+      ]
+    },
+    {
+      "name": "Fall Guys",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Epic",
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "fallguys.com",
+        "epicgames.com"
+      ]
+    },
+    {
+      "name": "Stumble Guys",
+      "category": "Mobile",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS",
+        "Steam"
+      ],
+      "test_endpoints": [
+        "stumbleguys.com"
+      ]
+    },
+    {
+      "name": "Naraka: Bladepoint",
+      "category": "Battle Royale",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "narakathegame.com"
+      ]
+    },
+    {
+      "name": "Blood Strike",
+      "category": "Mobile",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS"
+      ],
+      "test_endpoints": [
+        "bloodstrike.com"
+      ]
+    },
+    {
+      "name": "Farlight 84",
+      "category": "Battle Royale",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS",
+        "PC"
+      ],
+      "test_endpoints": [
+        "farlight84.com"
+      ]
+    },
+    {
+      "name": "Rust",
+      "category": "Survival",
+      "tcp_ports": [
+        "28016",
+        "28082"
+      ],
+      "udp_ports": [
+        "28015"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "rust.facepunch.com",
+        "api.facepunch.com"
+      ]
+    },
+    {
+      "name": "Ark: Survival Evolved",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [
+        "7777",
+        "7778",
+        "27015"
+      ],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "survivetheark.com"
+      ]
+    },
+    {
+      "name": "Ark: Survival Ascended",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "survivetheark.com"
+      ]
+    },
+    {
+      "name": "DayZ",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [
+        "2302-2305"
+      ],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "dayz.com",
+        "bohemia.net"
+      ]
+    },
+    {
+      "name": "7 Days to Die",
+      "category": "Survival",
+      "tcp_ports": [
+        "8080-8081",
+        "26900"
+      ],
+      "udp_ports": [
+        "26900-26902"
+      ],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "7daystodie.com"
+      ]
+    },
+    {
+      "name": "Palworld",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [
+        "8211",
+        "27015"
+      ],
+      "platforms": [
+        "Steam",
+        "Xbox"
+      ],
+      "test_endpoints": [
+        "palworld.gg",
+        "pocketpair.jp"
+      ]
+    },
+    {
+      "name": "Valheim",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [
+        "2456-2457"
+      ],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "valheimgame.com",
+        "irongate.se"
+      ]
+    },
+    {
+      "name": "Minecraft Java Edition",
+      "category": "Sandbox",
+      "tcp_ports": [
+        "25565"
+      ],
+      "udp_ports": [
+        "25565"
+      ],
+      "platforms": [
+        "Minecraft"
+      ],
+      "test_endpoints": [
+        "minecraft.net",
+        "sessionserver.mojang.com",
+        "api.mojang.com",
+        "authserver.mojang.com"
+      ]
+    },
+    {
+      "name": "Minecraft Bedrock Edition",
+      "category": "Sandbox",
+      "tcp_ports": [],
+      "udp_ports": [
+        "19132",
+        "19133"
+      ],
+      "platforms": [
+        "Minecraft",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Android",
+        "iOS"
+      ],
+      "test_endpoints": [
+        "minecraft.net"
+      ]
+    },
+    {
+      "name": "Terraria",
+      "category": "Sandbox",
+      "tcp_ports": [
+        "7777"
+      ],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": [
+        "terraria.org"
+      ]
+    },
+    {
+      "name": "Stardew Valley",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [
+        "24642"
+      ],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": [
+        "stardewvalley.net"
+      ]
+    },
+    {
+      "name": "Don't Starve Together",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [
+        "10999"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "klei.com",
+        "dontstarvegame.com"
+      ]
+    },
+    {
+      "name": "Project Zomboid",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [
+        "16261",
+        "16262"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "projectzomboid.com"
+      ]
+    },
+    {
+      "name": "Satisfactory",
+      "category": "Sandbox",
+      "tcp_ports": [],
+      "udp_ports": [
+        "7777",
+        "15777"
+      ],
+      "platforms": [
+        "Steam",
+        "Epic",
+        "Xbox"
+      ],
+      "test_endpoints": [
+        "satisfactorygame.com"
+      ]
+    },
+    {
+      "name": "Factorio",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [
+        "34197"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "factorio.com"
+      ]
+    },
+    {
+      "name": "RimWorld",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "rimworldgame.com"
+      ]
+    },
+    {
+      "name": "Dota 2",
+      "category": "MOBA",
+      "tcp_ports": [],
+      "udp_ports": [
+        "27000-27100"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "dota2.com",
+        "steamcommunity.com"
+      ]
+    },
+    {
+      "name": "League of Legends",
+      "category": "MOBA",
+      "tcp_ports": [
+        "2099",
+        "5222-5223",
+        "8393-8400"
+      ],
+      "udp_ports": [
+        "5000-5500",
+        "8088"
+      ],
+      "platforms": [
+        "Riot"
+      ],
+      "test_endpoints": [
+        "leagueoflegends.com",
+        "authenticate.riotgames.com",
+        "clientconfig.rpg.riotgames.com"
+      ]
+    },
+    {
+      "name": "Mobile Legends: Bang Bang",
+      "category": "Mobile",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS"
+      ],
+      "test_endpoints": [
+        "mobilelegends.com"
+      ]
+    },
+    {
+      "name": "Honor of Kings",
+      "category": "Mobile",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS"
+      ],
+      "test_endpoints": [
+        "honorofkings.com"
+      ]
+    },
+    {
+      "name": "Arena of Valor",
+      "category": "Mobile",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS"
+      ],
+      "test_endpoints": [
+        "arenaofvalor.com"
+      ]
+    },
+    {
+      "name": "Wild Rift",
+      "category": "Mobile",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS"
+      ],
+      "test_endpoints": [
+        "wildrift.leagueoflegends.com"
+      ]
+    },
+    {
+      "name": "Smite",
+      "category": "MOBA",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "smitegame.com",
+        "hirezstudios.com"
+      ]
+    },
+    {
+      "name": "Heroes of the Storm",
+      "category": "MOBA",
+      "tcp_ports": [
+        "1119",
+        "3724",
+        "6112-6114"
+      ],
+      "udp_ports": [],
+      "platforms": [
+        "Battle.net"
+      ],
+      "test_endpoints": [
+        "battle.net",
+        "heroesofthestorm.com"
+      ]
+    },
+    {
+      "name": "Rocket League",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Epic",
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "rocketleague.com",
+        "epicgames.com"
+      ]
+    },
+    {
+      "name": "EA Sports FC",
+      "category": "Sports",
+      "tcp_ports": [
+        "3569",
+        "8080",
+        "9946",
+        "9988"
+      ],
+      "udp_ports": [
+        "3659",
+        "9000-9999"
+      ],
+      "platforms": [
+        "EA",
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "ea.com",
+        "accounts.ea.com",
+        "easports.com"
+      ]
+    },
+    {
+      "name": "NBA 2K",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "nba2k.com",
+        "2k.com"
+      ]
+    },
+    {
+      "name": "Madden NFL",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "EA",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "ea.com",
+        "madden.easports.com"
+      ]
+    },
+    {
+      "name": "F1 series",
+      "category": "Racing",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "formula1.com"
+      ]
+    },
+    {
+      "name": "Forza Horizon",
+      "category": "Racing",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox"
+      ],
+      "test_endpoints": [
+        "forzamotorsport.net"
+      ]
+    },
+    {
+      "name": "Forza Motorsport",
+      "category": "Racing",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox"
+      ],
+      "test_endpoints": [
+        "forzamotorsport.net"
+      ]
+    },
+    {
+      "name": "Gran Turismo",
+      "category": "Racing",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "gran-turismo.com"
+      ]
+    },
+    {
+      "name": "iRacing",
+      "category": "Racing",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": [
+        "iracing.com"
+      ]
+    },
+    {
+      "name": "Assetto Corsa",
+      "category": "Racing",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "assettocorsa.net"
+      ]
+    },
+    {
+      "name": "Assetto Corsa Competizione",
+      "category": "Racing",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "assettocorsa.net"
+      ]
+    },
+    {
+      "name": "Street Fighter 6",
+      "category": "Fighting",
+      "tcp_ports": [
+        "20002",
+        "30840",
+        "30850",
+        "30870"
+      ],
+      "udp_ports": [
+        "30840-30859",
+        "30870-30879"
+      ],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "streetfighter.com",
+        "capcom.com"
+      ]
+    },
+    {
+      "name": "Tekken 8",
+      "category": "Fighting",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "tekken.com",
+        "bandainamcoent.com"
+      ]
+    },
+    {
+      "name": "Mortal Kombat 1",
+      "category": "Fighting",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "mortalkombat.com",
+        "netherrealm.com"
+      ]
+    },
+    {
+      "name": "Guilty Gear Strive",
+      "category": "Fighting",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "guiltygear.com"
+      ]
+    },
+    {
+      "name": "MultiVersus",
+      "category": "Fighting",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "multiversus.com"
+      ]
+    },
+    {
+      "name": "Brawlhalla",
+      "category": "Fighting",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Epic",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": [
+        "brawlhalla.com"
+      ]
+    },
+    {
+      "name": "World of Warcraft",
+      "category": "MMO",
+      "tcp_ports": [
+        "1119",
+        "3724",
+        "6112-6114"
+      ],
+      "udp_ports": [],
+      "platforms": [
+        "Battle.net"
+      ],
+      "test_endpoints": [
+        "worldofwarcraft.com",
+        "battle.net",
+        "us.battle.net",
+        "eu.battle.net"
+      ]
+    },
+    {
+      "name": "Final Fantasy XIV",
+      "category": "MMO",
+      "tcp_ports": [
+        "54992-54994",
+        "55006-55007",
+        "55021-55040"
+      ],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "finalfantasyxiv.com",
+        "lodestone.finalfantasyxiv.com"
+      ]
+    },
+    {
+      "name": "Lost Ark",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "playlostark.com"
+      ]
+    },
+    {
+      "name": "Black Desert Online",
+      "category": "MMO",
+      "tcp_ports": [
+        "8888",
+        "9991-9993"
+      ],
+      "udp_ports": [
+        "8888",
+        "9991-9993"
+      ],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "blackdesertonline.com",
+        "pearlabyss.com"
+      ]
+    },
+    {
+      "name": "New World",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "newworld.com"
+      ]
+    },
+    {
+      "name": "Elder Scrolls Online",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "elderscrollsonline.com",
+        "bethesda.net"
+      ]
+    },
+    {
+      "name": "Guild Wars 2",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other",
+        "Steam"
+      ],
+      "test_endpoints": [
+        "guildwars2.com",
+        "account.arena.net"
+      ]
+    },
+    {
+      "name": "Path of Exile",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Other"
+      ],
+      "test_endpoints": [
+        "pathofexile.com"
+      ]
+    },
+    {
+      "name": "Path of Exile 2",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "pathofexile.com"
+      ]
+    },
+    {
+      "name": "Diablo IV",
+      "category": "Other",
+      "tcp_ports": [
+        "1119",
+        "6112-6114"
+      ],
+      "udp_ports": [
+        "1119",
+        "6120"
+      ],
+      "platforms": [
+        "Battle.net",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "diablo4.blizzard.com",
+        "battle.net"
+      ]
+    },
+    {
+      "name": "Diablo Immortal",
+      "category": "Mobile",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS",
+        "PC"
+      ],
+      "test_endpoints": [
+        "diabloimmortal.com",
+        "battle.net"
+      ]
+    },
+    {
+      "name": "Genshin Impact",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS",
+        "PC",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "genshin.hoyoverse.com",
+        "hk4e-sdk-os.hoyoverse.com"
+      ]
+    },
+    {
+      "name": "Honkai: Star Rail",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS",
+        "PC",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "hsr.hoyoverse.com"
+      ]
+    },
+    {
+      "name": "Zenless Zone Zero",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS",
+        "PC",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "zenless.hoyoverse.com"
+      ]
+    },
+    {
+      "name": "Wuthering Waves",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS",
+        "PC"
+      ],
+      "test_endpoints": [
+        "wutheringwaves.kurogames.com"
+      ]
+    },
+    {
+      "name": "Tower of Fantasy",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS",
+        "PC"
+      ],
+      "test_endpoints": [
+        "toweroffantasy-global.com"
+      ]
+    },
+    {
+      "name": "Once Human",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Other"
+      ],
+      "test_endpoints": [
+        "oncehuman.game"
+      ]
+    },
+    {
+      "name": "Throne and Liberty",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "playthroneandliberty.com"
+      ]
+    },
+    {
+      "name": "Blue Protocol",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Corepunk",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Pax Dei",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Ashes of Creation",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Camelot Unchained",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Dual Universe",
+      "category": "Sandbox",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Starbase",
+      "category": "Sandbox",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Space Engineers",
+      "category": "Sandbox",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Empyrion - Galactic Survival",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "No Man's Sky",
+      "category": "Sandbox",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "nomanssky.com"
+      ]
+    },
+    {
+      "name": "Elite Dangerous",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Epic",
+        "Xbox"
+      ],
+      "test_endpoints": [
+        "elitedangerous.com"
+      ]
+    },
+    {
+      "name": "Star Citizen",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "RSI"
+      ],
+      "test_endpoints": [
+        "robertsspaceindustries.com"
+      ]
+    },
+    {
+      "name": "EVE Online",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Other"
+      ],
+      "test_endpoints": [
+        "eveonline.com",
+        "login.eveonline.com"
+      ]
+    },
+    {
+      "name": "Albion Online",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Android",
+        "iOS"
+      ],
+      "test_endpoints": [
+        "albiononline.com"
+      ]
+    },
+    {
+      "name": "Old School RuneScape",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Other",
+        "Mobile"
+      ],
+      "test_endpoints": [
+        "oldschool.runescape.com",
+        "runescape.com"
+      ]
+    },
+    {
+      "name": "RuneScape 3",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Other"
+      ],
+      "test_endpoints": [
+        "runescape.com"
+      ]
+    },
+    {
+      "name": "Maplestory",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Nexon",
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Maplestory 2",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Tera",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Blade & Soul",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Aion",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Lineage 2",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Lineage 3",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Lost Ark",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "playlostark.com"
+      ]
+    },
+    {
+      "name": "Throne and Liberty",
+      "category": "MMO",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "playthroneandliberty.com"
+      ]
+    },
+    {
+      "name": "Once Human",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "oncehuman.game"
+      ]
+    },
+    {
+      "name": "Nightingale",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Enshrouded",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Soulmask",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Pandora: First Contact",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Age of Empires IV",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Age of Empires II",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "StarCraft II",
+      "category": "Strategy",
+      "tcp_ports": [
+        "1119",
+        "3724",
+        "6112-6114"
+      ],
+      "udp_ports": [],
+      "platforms": [
+        "Battle.net"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Warcraft III",
+      "category": "Strategy",
+      "tcp_ports": [
+        "1119",
+        "3724",
+        "6112-6114"
+      ],
+      "udp_ports": [],
+      "platforms": [
+        "Battle.net"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Company of Heroes 3",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Total War series",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Civilization VI",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Civilization VII",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Humankind",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Frostpunk 2",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "They Are Billions",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Northgard",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Dyson Sphere Program",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Shapez 2",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Factorio",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [
+        "34197"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "factorio.com"
+      ]
+    },
+    {
+      "name": "Satisfactory",
+      "category": "Sandbox",
+      "tcp_ports": [],
+      "udp_ports": [
+        "7777"
+      ],
+      "platforms": [
+        "Steam",
+        "Epic"
+      ],
+      "test_endpoints": [
+        "satisfactorygame.com"
+      ]
+    },
+    {
+      "name": "Captains of Industry",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Oxygen Not Included",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "RimWorld",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "rimworldgame.com"
+      ]
+    },
+    {
+      "name": "Against the Storm",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Manor Lords",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Cities: Skylines II",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Workers & Resources: Soviet Republic",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Prison Architect",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Two Point Campus",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Planet Zoo",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Planet Coaster",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Jurassic World Evolution 2",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Football Manager",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Out of the Park Baseball",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "eFootball",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "UFC",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "EA",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "WWE 2K",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Tony Hawk's Pro Skater",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Session: Skate Sim",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Skater XL",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Descenders",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Riders Republic",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Ubisoft",
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Steep",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Ubisoft",
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "The Crew Motorfest",
+      "category": "Racing",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Ubisoft",
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Need for Speed",
+      "category": "Racing",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "EA",
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Dirt Rally",
+      "category": "Racing",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "WRC",
+      "category": "Racing",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "BeamNG.drive",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "beamng.com"
+      ]
+    },
+    {
+      "name": "My Summer Car",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Euro Truck Simulator 2",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "eurotrucksimulator2.com",
+        "scssoft.com"
+      ]
+    },
+    {
+      "name": "American Truck Simulator",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "americantrucksimulator.com"
+      ]
+    },
+    {
+      "name": "Microsoft Flight Simulator",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox"
+      ],
+      "test_endpoints": [
+        "flightsimulator.com"
+      ]
+    },
+    {
+      "name": "X-Plane",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "VRChat",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [
+        "5055-5056",
+        "5058"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "vrchat.com",
+        "api.vrchat.cloud"
+      ]
+    },
+    {
+      "name": "Rec Room",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Mobile"
+      ],
+      "test_endpoints": [
+        "recroom.com"
+      ]
+    },
+    {
+      "name": "Horizon Worlds",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Meta"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Roblox",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Windows",
+        "Android",
+        "iOS",
+        "Xbox"
+      ],
+      "test_endpoints": [
+        "roblox.com",
+        "www.roblox.com",
+        "auth.roblox.com"
+      ]
+    },
+    {
+      "name": "Core",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": [
+        "coregames.com"
+      ]
+    },
+    {
+      "name": "Garry's Mod",
+      "category": "Sandbox",
+      "tcp_ports": [
+        "27015"
+      ],
+      "udp_ports": [
+        "27015"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "garrysmod.com",
+        "steamcommunity.com"
+      ]
+    },
+    {
+      "name": "Tabletop Simulator",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "tabletopsimulator.com"
+      ]
+    },
+    {
+      "name": "Jackbox Party Pack",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "jackboxgames.com"
+      ]
+    },
+    {
+      "name": "Code Names",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Gartic Phone",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Browser",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Skribbl.io",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Browser"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Krunker.io",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Browser"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Shell Shockers",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Browser"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Zombs Royale",
+      "category": "Battle Royale",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Browser",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "surviv.io",
+      "category": "Battle Royale",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Browser"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Diep.io",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Browser"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Agar.io",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Browser",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Slither.io",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Browser",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Hole.io",
+      "category": "Mobile",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Android",
+        "iOS"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Worms",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Worms W.M.D",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Move or Die",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Pummel Party",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Gang Beasts",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Human Fall Flat",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Overcooked! 2",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Moving Out",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Unrailed!",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "PlateUp!",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Keep Talking and Nobody Explodes",
+      "category": "Party",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "We Were Here series",
+      "category": "Puzzle",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "It Takes Two",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "EA",
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "ea.com",
+        "hazelight.se"
+      ]
+    },
+    {
+      "name": "A Way Out",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "EA",
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "ea.com"
+      ]
+    },
+    {
+      "name": "Brothers: A Tale of Two Sons",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Stardew Valley",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [
+        "24642"
+      ],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": [
+        "stardewvalley.net"
+      ]
+    },
+    {
+      "name": "Terraria",
+      "category": "Sandbox",
+      "tcp_ports": [
+        "7777"
+      ],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": [
+        "terraria.org"
+      ]
+    },
+    {
+      "name": "Core Keeper",
+      "category": "Sandbox",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "corekeeper.pugstorm.studio"
+      ]
+    },
+    {
+      "name": "Sunkenland",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Raft",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "raft-game.com"
+      ]
+    },
+    {
+      "name": "Grounded",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox"
+      ],
+      "test_endpoints": [
+        "grounded.obsidian.net"
+      ]
+    },
+    {
+      "name": "Grounded 2",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "V Rising",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "playvrising.com"
+      ]
+    },
+    {
+      "name": "Valheim",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [
+        "2456-2457"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "valheimgame.com",
+        "irongate.se"
+      ]
+    },
+    {
+      "name": "Icarus",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "The Forest",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "endnightgames.com"
+      ]
+    },
+    {
+      "name": "Sons of the Forest",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "sotf-game.com"
+      ]
+    },
+    {
+      "name": "Green Hell",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "greenhell-game.com"
+      ]
+    },
+    {
+      "name": "The Long Dark",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Subnautica",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "unknownworlds.com"
+      ]
+    },
+    {
+      "name": "Subnautica: Below Zero",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Astroneer",
+      "category": "Sandbox",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": [
+        "astroneer.space"
+      ]
+    },
+    {
+      "name": "Deep Rock Galactic",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "deeprockgalactic.com"
+      ]
+    },
+    {
+      "name": "Deep Rock Galactic: Survivor",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Warframe",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [
+        "4950",
+        "4955",
+        "4990"
+      ],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": [
+        "warframe.com",
+        "api.warframe.com"
+      ]
+    },
+    {
+      "name": "Destiny 2",
+      "category": "FPS",
+      "tcp_ports": [
+        "3074",
+        "7500-7509"
+      ],
+      "udp_ports": [
+        "3074",
+        "27015-27200"
+      ],
+      "platforms": [
+        "Steam",
+        "Epic",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "bungie.net",
+        "www.bungie.net",
+        "api.bungie.net"
+      ]
+    },
+    {
+      "name": "Anthem",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "EA",
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Outriders",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Remnant 2",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "remnantgame.com"
+      ]
+    },
+    {
+      "name": "Remnant: From the Ashes",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Borderlands 3",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Epic",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "borderlands.com",
+        "2k.com"
+      ]
+    },
+    {
+      "name": "Borderlands 4",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Tiny Tina's Wonderlands",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Ghost of Tsushima Director's Cut",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Helldivers 2",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "PlayStation"
+      ],
+      "test_endpoints": [
+        "helldiverscompany.com",
+        "arrowheadgamestudios.com"
+      ]
+    },
+    {
+      "name": "Helldivers",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "DRG Survivor",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Vampire Survivors",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Brotato",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Soulstone Survivors",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "20 Minutes Till Dawn",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Halls of Torment",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Death Must Die",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Hades II",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Hades",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Dead Cells",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Enter the Gungeon",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "The Binding of Isaac",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Slay the Spire",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Slay the Spire 2",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Balatro",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Inscryption",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Loop Hero",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Darkest Dungeon",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Darkest Dungeon II",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Children of Morta",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Moonlighter",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Graveyard Keeper",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Cult of the Lamb",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Don't Starve",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Oxygen Not Included",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Timberborn",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Going Medieval",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Clanfolk",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Foundations",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Farthest Frontier",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Settlement Survival",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Banished",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Kingdoms and Castles",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Stonehearth",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Clockwork Empires",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Dwarf Fortress",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Caves of Qud",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Tales of Maj'Eyal",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Cogmind",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Brogue",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Cataclysm: Dark Days Ahead",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "UnReal World",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "NEO Scavenger",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Project Zomboid",
+      "category": "Survival",
+      "tcp_ports": [],
+      "udp_ports": [
+        "16261"
+      ],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": [
+        "projectzomboid.com"
+      ]
+    },
+    {
+      "name": "Undecember",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Other"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Last Epoch",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Wolcen",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Chronicon",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Titan Quest",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Grim Dawn",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Sacred 2",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Divine Divinity",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Divinity: Original Sin 2",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Baldur's Gate 3",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Mac"
+      ],
+      "test_endpoints": [
+        "baldursgate3.game",
+        "larian.com"
+      ]
+    },
+    {
+      "name": "Solasta",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Pathfinder: Wrath of the Righteous",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Pathfinder: Kingmaker",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Pillars of Eternity II",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Tyranny",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Wasteland 3",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Shadowrun trilogy",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "XCOM 2",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "XCOM: Chimera Squad",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Phoenix Point",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Gears Tactics",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Warhammer 40,000: Gladius",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Warhammer 40,000: Chaos Gate",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "BattleTech",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Xbox",
+        "PlayStation",
+        "Switch"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Into the Breach",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Switch",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "FTL: Faster Than Light",
+      "category": "Strategy",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Mobile"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Into the Radius",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Half-Life: Alyx",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Boneworks",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Bonelab",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Population: One",
+      "category": "Battle Royale",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Meta",
+        "Steam"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Contractors",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Meta"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Onward",
+      "category": "FPS",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Meta"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Pistol Whip",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Meta",
+        "PlayStation",
+        "Xbox"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Beat Saber",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Meta",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Synth Riders",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Meta",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Audica",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Meta"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Thrill of the Fight",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Meta"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Eleven Table Tennis",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Meta"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Walkabout Mini Golf",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Meta",
+        "PlayStation"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Golf+",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Meta"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Racket Fury",
+      "category": "Sports",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Steam",
+        "Meta"
+      ],
+      "test_endpoints": []
+    },
+    {
+      "name": "Windows Mixed Reality",
+      "category": "Other",
+      "tcp_ports": [],
+      "udp_ports": [],
+      "platforms": [
+        "Windows"
+      ],
+      "test_endpoints": []
+    }
+  ]
+}

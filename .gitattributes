@@ -1,0 +1,14 @@
+* text=auto
+
+# Must stay LF or it fails with "bad interpreter" on Linux/macOS
+gradlew text eol=lf
+
+*.bat text eol=crlf
+
+# Prebuilt binaries — never touch line endings
+*.jar binary
+*.aar binary
+*.so  binary
+*.apk binary
+*.jks binary
+*.png binary

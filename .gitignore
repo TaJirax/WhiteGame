@@ -1,0 +1,23 @@
+# Android / Gradle build output
+.gradle/
+build/
+local.properties
+captures/
+.cxx/
+
+# Release signing material — never commit. Keep whitebooster.jks in a password
+# manager or secure backup; app/build.gradle.kts reads the passwords from
+# gradle.properties (see keystore/README.md).
+keystore/*.jks
+keystore/*.keystore
+signing.properties
+
+# Built APKs — ship these as GitHub Releases, not repo files
+dist/
+*.apk
+*.aab
+
+# IDE
+.idea/
+*.iml
+.DS_Store

@@ -1,0 +1,829 @@
+[
+  {
+    "id": "mlbb",
+    "name": "Mobile Legends",
+    "category": "MOBA",
+    "hosts": [
+      "mlbb.mob.com",
+      "api.mobilelegends.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [
+      5000
+    ],
+    "regions": [
+      "SG",
+      "ID",
+      "EU"
+    ],
+    "pingNeed": "<60ms",
+    "packageNames": [
+      "com.mobile.legends"
+    ]
+  },
+  {
+    "id": "freefire",
+    "name": "Free Fire",
+    "category": "BR",
+    "hosts": [
+      "ff.garena.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [
+      10012
+    ],
+    "regions": [
+      "SG",
+      "TH",
+      "BR"
+    ],
+    "pingNeed": "<70ms",
+    "packageNames": [
+      "com.dts.freefireth",
+      "com.dts.freefiremax"
+    ]
+  },
+  {
+    "id": "pubgm",
+    "name": "PUBG Mobile",
+    "category": "BR",
+    "hosts": [
+      "pubgmobile.com",
+      "gcloud.gpubgm.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [
+      20001
+    ],
+    "regions": [
+      "SG",
+      "EU",
+      "BH"
+    ],
+    "pingNeed": "<80ms",
+    "packageNames": [
+      "com.tencent.ig",
+      "com.pubg.krmobile",
+      "com.vng.pubgmobile"
+    ]
+  },
+  {
+    "id": "codm",
+    "name": "COD Mobile",
+    "category": "FPS",
+    "hosts": [
+      "codm.activision.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [
+      3074
+    ],
+    "regions": [
+      "EU",
+      "ME",
+      "SG"
+    ],
+    "pingNeed": "<70ms",
+    "packageNames": [
+      "com.activision.callofduty.shooter"
+    ]
+  },
+  {
+    "id": "genshin",
+    "name": "Genshin Impact",
+    "category": "RPG",
+    "hosts": [
+      "hk4e-api-os.hoyoverse.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "SG",
+      "EU",
+      "US"
+    ],
+    "pingNeed": "Login",
+    "packageNames": [
+      "com.miHoYo.GenshinImpact"
+    ]
+  },
+  {
+    "id": "hsr",
+    "name": "Honkai Star Rail",
+    "category": "RPG",
+    "hosts": [
+      "api-os-takumi.mihoyo.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "SG",
+      "EU"
+    ],
+    "pingNeed": "Login",
+    "packageNames": [
+      "com.HoYoverse.hkrpgoversea"
+    ]
+  },
+  {
+    "id": "zzz",
+    "name": "Zenless Zone Zero",
+    "category": "RPG",
+    "hosts": [
+      "nap-api.hoyoverse.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "SG",
+      "EU"
+    ],
+    "pingNeed": "Login",
+    "packageNames": [
+      "com.HoYoverse.Nap"
+    ]
+  },
+  {
+    "id": "roblox",
+    "name": "Roblox",
+    "category": "Platform",
+    "hosts": [
+      "roblox.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "US",
+      "EU"
+    ],
+    "pingNeed": "<100ms",
+    "packageNames": [
+      "com.roblox.client"
+    ]
+  },
+  {
+    "id": "fortnite",
+    "name": "Fortnite",
+    "category": "BR",
+    "hosts": [
+      "fortnite.com",
+      "epicgames.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [
+      9000
+    ],
+    "regions": [
+      "EU",
+      "NA"
+    ],
+    "pingNeed": "<80ms",
+    "packageNames": [
+      "com.epicgames.fortnite"
+    ]
+  },
+  {
+    "id": "valorant",
+    "name": "Valorant",
+    "category": "FPS",
+    "hosts": [
+      "playvalorant.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [
+      5000
+    ],
+    "regions": [
+      "EU",
+      "TR"
+    ],
+    "pingNeed": "<50ms",
+    "packageNames": []
+  },
+  {
+    "id": "lolwr",
+    "name": "Wild Rift",
+    "category": "MOBA",
+    "hosts": [
+      "wildrift.leagueoflegends.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [
+      5000
+    ],
+    "regions": [
+      "EU",
+      "TR",
+      "SG"
+    ],
+    "pingNeed": "<60ms",
+    "packageNames": [
+      "com.riotgames.league.wildrift"
+    ]
+  },
+  {
+    "id": "clash",
+    "name": "Clash of Clans",
+    "category": "Strategy",
+    "hosts": [
+      "game.clashofclans.com"
+    ],
+    "tcpPorts": [
+      9339,
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "EU",
+      "SG"
+    ],
+    "pingNeed": "<100ms",
+    "packageNames": [
+      "com.supercell.clashofclans"
+    ]
+  },
+  {
+    "id": "cr",
+    "name": "Clash Royale",
+    "category": "Strategy",
+    "hosts": [
+      "game.clashroyaleapp.com"
+    ],
+    "tcpPorts": [
+      9339,
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "EU"
+    ],
+    "pingNeed": "<90ms",
+    "packageNames": [
+      "com.supercell.clashroyale"
+    ]
+  },
+  {
+    "id": "brawl",
+    "name": "Brawl Stars",
+    "category": "Action",
+    "hosts": [
+      "game.brawlstarsgame.com"
+    ],
+    "tcpPorts": [
+      9339,
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "EU"
+    ],
+    "pingNeed": "<90ms",
+    "packageNames": [
+      "com.supercell.brawlstars"
+    ]
+  },
+  {
+    "id": "hayday",
+    "name": "Hay Day",
+    "category": "Farm",
+    "hosts": [
+      "game.haydaygame.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "EU"
+    ],
+    "pingNeed": "<120ms",
+    "packageNames": [
+      "com.supercell.hayday"
+    ]
+  },
+  {
+    "id": "steam",
+    "name": "Steam",
+    "category": "Platform",
+    "hosts": [
+      "api.steampowered.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [
+      27015
+    ],
+    "regions": [
+      "EU",
+      "US"
+    ],
+    "pingNeed": "<120ms",
+    "packageNames": [
+      "com.valvesoftware.android.steam.community"
+    ]
+  },
+  {
+    "id": "discord",
+    "name": "Discord",
+    "category": "Voice",
+    "hosts": [
+      "discord.com",
+      "gateway.discord.gg"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "EU",
+      "US"
+    ],
+    "pingNeed": "<80ms",
+    "packageNames": [
+      "com.discord"
+    ]
+  },
+  {
+    "id": "minecraft",
+    "name": "Minecraft",
+    "category": "Sandbox",
+    "hosts": [
+      "api.minecraftservices.com"
+    ],
+    "tcpPorts": [
+      443,
+      25565
+    ],
+    "udpPorts": [
+      19132
+    ],
+    "regions": [
+      "EU",
+      "US"
+    ],
+    "pingNeed": "<100ms",
+    "packageNames": [
+      "com.mojang.minecraftpe"
+    ]
+  },
+  {
+    "id": "efootball",
+    "name": "eFootball",
+    "category": "Sports",
+    "hosts": [
+      "efootball.konami.net"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "EU",
+      "SG",
+      "JP"
+    ],
+    "pingNeed": "<90ms",
+    "packageNames": [
+      "jp.konami.pesam"
+    ]
+  },
+  {
+    "id": "fc",
+    "name": "EA FC Mobile",
+    "category": "Sports",
+    "hosts": [
+      "ea.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "EU",
+      "NA"
+    ],
+    "pingNeed": "<90ms",
+    "packageNames": [
+      "com.ea.gp.fifamobile"
+    ]
+  },
+  {
+    "id": "nba",
+    "name": "NBA 2K Mobile",
+    "category": "Sports",
+    "hosts": [
+      "nba.2k.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "US",
+      "EU"
+    ],
+    "pingNeed": "<100ms",
+    "packageNames": [
+      "com.nba.mobile.nba2k"
+    ]
+  },
+  {
+    "id": "asphalt",
+    "name": "Asphalt 9",
+    "category": "Racing",
+    "hosts": [
+      "gameloft.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "EU",
+      "SG"
+    ],
+    "pingNeed": "<100ms",
+    "packageNames": [
+      "com.gameloft.android.ANMP.GloftA9HM"
+    ]
+  },
+  {
+    "id": "carx",
+    "name": "CarX Street",
+    "category": "Racing",
+    "hosts": [
+      "carx-online.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "EU"
+    ],
+    "pingNeed": "<100ms",
+    "packageNames": [
+      "com.carxtech.carxstreet"
+    ]
+  },
+  {
+    "id": "stumble",
+    "name": "Stumble Guys",
+    "category": "Party",
+    "hosts": [
+      "stumbleguys.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "US",
+      "EU"
+    ],
+    "pingNeed": "<100ms",
+    "packageNames": [
+      "com.kitkagames.fallbuddies"
+    ]
+  },
+  {
+    "id": "among",
+    "name": "Among Us",
+    "category": "Party",
+    "hosts": [
+      "innersloth.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "US",
+      "EU"
+    ],
+    "pingNeed": "<120ms",
+    "packageNames": [
+      "com.innersloth.spacemafia"
+    ]
+  },
+  {
+    "id": "codwarzone",
+    "name": "Warzone Mobile",
+    "category": "FPS",
+    "hosts": [
+      "callofduty.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [
+      3074
+    ],
+    "regions": [
+      "EU",
+      "ME"
+    ],
+    "pingNeed": "<70ms",
+    "packageNames": [
+      "com.activision.callofduty.warzone"
+    ]
+  },
+  {
+    "id": "delta",
+    "name": "Delta Force",
+    "category": "FPS",
+    "hosts": [
+      "deltacn.tencent.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "SG",
+      "EU"
+    ],
+    "pingNeed": "<80ms",
+    "packageNames": [
+      "com.proxima.dfm"
+    ]
+  },
+  {
+    "id": "arena",
+    "name": "Arena Breakout",
+    "category": "Extraction",
+    "hosts": [
+      "levelinfinite.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "SG",
+      "EU"
+    ],
+    "pingNeed": "<80ms",
+    "packageNames": [
+      "com.levelinfinite.sgameGlobalEx"
+    ]
+  },
+  {
+    "id": "blood",
+    "name": "Blood Strike",
+    "category": "FPS",
+    "hosts": [
+      "netease.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "SG"
+    ],
+    "pingNeed": "<80ms",
+    "packageNames": [
+      "com.netease.newspike"
+    ]
+  },
+  {
+    "id": "identity",
+    "name": "Identity V",
+    "category": "Asym",
+    "hosts": [
+      "netease.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "SG",
+      "EU"
+    ],
+    "pingNeed": "<100ms",
+    "packageNames": [
+      "com.netease.idv.googleplay"
+    ]
+  },
+  {
+    "id": "state",
+    "name": "State of Survival",
+    "category": "Strategy",
+    "hosts": [
+      "kingsgroupgames.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "US",
+      "SG"
+    ],
+    "pingNeed": "<120ms",
+    "packageNames": [
+      "com.kingsgroup.sos"
+    ]
+  },
+  {
+    "id": "lolpc",
+    "name": "League PC path",
+    "category": "MOBA",
+    "hosts": [
+      "riotgames.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "EU",
+      "TR"
+    ],
+    "pingNeed": "<50ms",
+    "packageNames": []
+  },
+  {
+    "id": "genshin_cn",
+    "name": "Tower of Fantasy",
+    "category": "RPG",
+    "hosts": [
+      "toweroffantasy.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "SG",
+      "EU"
+    ],
+    "pingNeed": "Login",
+    "packageNames": [
+      "com.levelinfinite.hotta.gp"
+    ]
+  },
+  {
+    "id": "wuthering",
+    "name": "Wuthering Waves",
+    "category": "RPG",
+    "hosts": [
+      "kurogame.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "SG",
+      "EU"
+    ],
+    "pingNeed": "Login",
+    "packageNames": [
+      "com.kurogame.wutheringwaves.global"
+    ]
+  },
+  {
+    "id": "nikke",
+    "name": "NIKKE",
+    "category": "RPG",
+    "hosts": [
+      "nikke-en.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "SG",
+      "US"
+    ],
+    "pingNeed": "Login",
+    "packageNames": [
+      "com.shiftup.nk.android.google"
+    ]
+  },
+  {
+    "id": "pokemongo",
+    "name": "Pokémon GO",
+    "category": "AR",
+    "hosts": [
+      "pgorelease.nianticlabs.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "Global"
+    ],
+    "pingNeed": "<150ms",
+    "packageNames": [
+      "com.nianticlabs.pokemongo"
+    ]
+  },
+  {
+    "id": "codmobile_garena",
+    "name": "CODM Garena",
+    "category": "FPS",
+    "hosts": [
+      "garena.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [
+      3074
+    ],
+    "regions": [
+      "SG",
+      "TH"
+    ],
+    "pingNeed": "<70ms",
+    "packageNames": [
+      "com.garena.game.codm"
+    ]
+  },
+  {
+    "id": "hok",
+    "name": "Honor of Kings",
+    "category": "MOBA",
+    "hosts": [
+      "hok.qq.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "SG"
+    ],
+    "pingNeed": "<60ms",
+    "packageNames": [
+      "com.levelinfinite.sgameGlobal"
+    ]
+  },
+  {
+    "id": "oncehuman",
+    "name": "Once Human",
+    "category": "Survival",
+    "hosts": [
+      "oncehuman.game"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "EU",
+      "US"
+    ],
+    "pingNeed": "<100ms",
+    "packageNames": []
+  },
+  {
+    "id": "diablo",
+    "name": "Diablo Immortal",
+    "category": "RPG",
+    "hosts": [
+      "blizzard.com"
+    ],
+    "tcpPorts": [
+      443
+    ],
+    "udpPorts": [],
+    "regions": [
+      "EU",
+      "US"
+    ],
+    "pingNeed": "<100ms",
+    "packageNames": [
+      "com.blizzard.diablo.immortal"
+    ]
+  }
+]
