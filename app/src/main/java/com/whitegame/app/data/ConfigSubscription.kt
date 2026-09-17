@@ -2,6 +2,7 @@ package com.whitegame.app.data
 
 import android.content.Context
 import com.whitegame.app.model.SubNode
+import com.whitegame.app.xray.XrayConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -20,6 +21,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * Understands what a WireGuard subscription actually ships:
  *  - one or more `[Interface]` blocks (plain .conf text),
  *  - sing-box JSON (`endpoints` / `outbounds` of type wireguard),
+ *  - Xray share links (vless/vmess/trojan/ss/hysteria2), one per line,
  *  - either of those wrapped in base64,
  *  - bare `host:port` lines, which can only be ranked by ping, not connected to.
  */
@@ -75,6 +77,11 @@ class ConfigSubscription @Inject constructor(
 
             if (t.contains("[Interface]", ignoreCase = true)) return fromConfText(t)
             if (t.startsWith("{") || t.startsWith("[")) return fromSingBox(t)
+
+            // Before the base64 attempt: a plain share-link list is not base64, and
+            // dropping to fromHostPortLines would throw the links away and leave the
+            // list ping-only.
+            fromShareLinks(t).takeIf { it.isNotEmpty() }?.let { return it }
 
             // Whole-body base64 is the most common subscription wrapper.
             if (depth == 0) decodeBase64(t)?.let { return parse(it, depth + 1) }
@@ -160,6 +167,19 @@ class ConfigSubscription @Inject constructor(
                 appendLine("PersistentKeepalive = " + keepalive)
             }
         }
+
+        /**
+         * Xray share links, one per line. The link itself is the config, so these nodes are
+         * importable and can be measured through the proxy rather than by a bare TCP connect.
+         */
+        private fun fromShareLinks(text: String): List<SubNode> =
+            text.lines().mapIndexedNotNull { i, line ->
+                val raw = line.trim()
+                if (raw.isEmpty() || !XrayConfig.looksLikeXray(raw)) return@mapIndexedNotNull null
+                val p = runCatching { XrayConfig.parse(raw) }.getOrNull()
+                    ?: return@mapIndexedNotNull null
+                node(i, p.name, p.host, p.port, p.protocol, raw)
+            }
 
         /** Last resort: a list that only mentions host:port. Ping-only, nothing to connect to. */
         private fun fromHostPortLines(text: String): List<SubNode> {

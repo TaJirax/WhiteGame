@@ -1,6 +1,7 @@
 package com.whitegame.app.viewmodel
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.runtime.getValue
@@ -24,19 +25,23 @@ import com.whitegame.app.model.RecommendedDns
 import com.whitegame.app.model.SubNode
 import com.whitegame.app.model.TunnelState
 import com.whitegame.app.network.NetworkProber
+import com.whitegame.app.xray.XrayBridge
 import com.whitegame.app.xray.XrayConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.withPermit
 import javax.inject.Inject
 
 @HiltViewModel
 class ConnectionViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val assetLoader: AssetLoader,
     private val tunnel: TunnelController,
     private val store: TunnelStore,
@@ -292,6 +297,29 @@ class ConnectionViewModel @Inject constructor(
     }
 
     /** Saves one subscription server as a real tunnel and selects it, ready to connect. */
+    /**
+     * Real round trip through the node's own proxy.
+     *
+     * A bare TCP connect only proves that something on the path completed a handshake:
+     * transparent proxies and DPI middleboxes answer one in a few milliseconds for a server
+     * on another continent, which is why every node used to rank at 3-8ms. Fetching a real
+     * 204 through the outbound cannot be answered by anything but the server itself.
+     */
+    private suspend fun measureThroughProxy(n: SubNode): SubNode {
+        val parsed = runCatching { XrayConfig.parse(n.conf) }.getOrNull()
+            ?: return n.copy(pingMs = null, lossPct = 100, score = 0, status = "Bad config")
+        // A dead node otherwise sits on the core's 30s timeout and stalls the queue.
+        val ms = withTimeoutOrNull(9_000) {
+            XrayBridge.delay(context, parsed).getOrNull()
+        }
+        return n.copy(
+            pingMs = ms,
+            lossPct = if (ms != null) 0 else 100,
+            score = if (ms != null) DnsData.scoreDns(ms, 0, 0L).first else 0,
+            status = if (ms != null) "OK" else "Unreachable"
+        )
+    }
+
     fun importNode(node: SubNode) {
         if (node.conf.isBlank()) {
             subMessage = "That entry has no key material — it can only be pinged"
@@ -331,17 +359,24 @@ class ConnectionViewModel @Inject constructor(
             try {
                 val scanned = withContext(Dispatchers.IO) {
                     val gate = kotlinx.coroutines.sync.Semaphore(4)
+                    // The test core handles one request at a time, so proxy measurements
+                    // queue rather than run four deep.
+                    val proxyGate = kotlinx.coroutines.sync.Semaphore(1)
                     subNodes.map { n ->
-                        async { gate.withPermit {
-                            val r = NetworkProber.probeTcp(n.host, n.port, 3, 2500)
-                            n.copy(
-                                pingMs = r.avgMs,
-                                lossPct = r.lossPct,
-                                score = DnsData.scoreDns(r.avgMs, r.lossPct, r.jitterMs).first,
-                                status = if (r.avgMs != null) "OK" else "Unreachable"
-                            )
+                        async {
+                            if (XrayConfig.looksLikeXray(n.conf)) proxyGate.withPermit {
+                                measureThroughProxy(n)
+                            } else gate.withPermit {
+                                val r = NetworkProber.probeTcp(n.host, n.port, 3, 2500)
+                                n.copy(
+                                    pingMs = r.avgMs,
+                                    lossPct = r.lossPct,
+                                    score = DnsData.scoreDns(r.avgMs, r.lossPct, r.jitterMs).first,
+                                    status = if (r.avgMs != null) "OK" else "Unreachable"
+                                )
+                            }
                         }
-                    } }.awaitAll()
+                    }.awaitAll()
                 }
                 subNodes = scanned.sortedByDescending { it.score }
                 val best = subNodes.firstOrNull { it.pingMs != null }
