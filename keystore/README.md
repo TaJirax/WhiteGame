@@ -20,3 +20,20 @@ local Android debug key and `assembleRelease` produces an unsigned APK.
 
 If the keystore is ever lost, the app's signing identity is gone with it — a new
 key means existing installs cannot upgrade, only reinstall.
+
+## CI signing
+
+The release workflow (`.github/workflows/ci.yml`) rebuilds the keystore from
+repository secrets. Set these once under
+*Settings → Secrets and variables → Actions*:
+
+| Secret | Value |
+|---|---|
+| `KEYSTORE_BASE64` | `base64 -w0 keystore/whitebooster.jks` |
+| `KEYSTORE_PASSWORD` | the store password |
+| `KEY_PASSWORD` | the key password |
+
+The release job runs on `v*` tags only and never on a pull request, so a fork
+cannot reach these. After building, it checks every APK's signing certificate
+against a pinned SHA-256 and refuses to publish on a mismatch — rotating the
+key means updating `EXPECTED_SHA256` in the workflow too.

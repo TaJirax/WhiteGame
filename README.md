@@ -35,6 +35,20 @@ Kotlin, Jetpack Compose, Hilt. `minSdk 23` (Android 6.0), `targetSdk 34`.
 than `abiFilters`, because AGP does not re-merge native libraries when a filter
 changes and a filtered build can otherwise ship the previous run's ABIs.
 
+## Releasing
+
+Releases are built by CI, not from a laptop. Tag a commit whose `versionName`
+matches and push it:
+
+```bash
+git tag v7.2.0 && git push origin v7.2.0
+```
+
+The workflow runs the tests, builds the universal and per-ABI release APKs,
+verifies each one carries the expected signing certificate, and publishes them
+to a GitHub Release. Signing secrets are described in
+[keystore/README.md](keystore/README.md).
+
 Release signing material is **not** in this repository — see
 [keystore/README.md](keystore/README.md). Without it the project still compiles
 and tests; debug builds fall back to the local Android debug key and

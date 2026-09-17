@@ -7,7 +7,7 @@ captures/
 
 # Release signing material — never commit. Keep whitebooster.jks in a password
 # manager or secure backup; app/build.gradle.kts reads the passwords from
-# gradle.properties (see keystore/README.md).
+# keystore/signing.properties or the environment (see keystore/README.md).
 keystore/*.jks
 keystore/*.keystore
 signing.properties
