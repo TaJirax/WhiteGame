@@ -125,7 +125,15 @@ class ConnectionViewModel @Inject constructor(
         viewModelScope.launch { tunnel.killSwitch.collectLatest { killSwitch = it } }
         viewModelScope.launch { tunnel.autoReconnect.collectLatest { autoReconnect = it } }
         viewModelScope.launch { tunnel.preferredDns.collectLatest { preferredDns = it } }
-        viewModelScope.launch { tunnel.systemDns.collectLatest { systemDns = it; refreshDnsMessage() } }
+        viewModelScope.launch {
+            tunnel.systemDns.collectLatest {
+                val wasActive = systemDns != null
+                systemDns = it
+                if (it == null && wasActive) {
+                    dnsMessage = if (state.isLive) "Using the tunnel's own DNS" else "Back to Android's default DNS"
+                } else refreshDnsMessage()
+            }
+        }
         viewModelScope.launch {
             tunnel.dnsProblem.collectLatest { if (it.isNotBlank()) dnsMessage = it }
         }
