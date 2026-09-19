@@ -32,14 +32,16 @@ jobs:
 
       # No signing secrets here: this job also runs for pull requests, including
       # from forks. Debug falls back to the local Android debug key.
-      - run: ./gradlew testDebugUnitTest assembleDebug --no-daemon
+      - run: ./gradlew testDebugUnitTest assembleDebug lintDebug --no-daemon
 
       - name: Upload test report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: app/build/reports/tests/
+          path: |
+            app/build/reports/tests/
+            app/build/reports/lint-results-debug.*
 
   release:
     name: Signed release

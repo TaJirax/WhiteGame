@@ -4,12 +4,10 @@ import java.io.InputStream
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
-import java.security.SecureRandom
-import java.security.cert.X509Certificate
-import javax.net.ssl.SSLContext
+import android.os.Build
+import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.SSLPeerUnverifiedException
 import javax.net.ssl.SSLSocket
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
 
 /**
  * One comparable number for every way of reaching a game server: the time to open a connection
@@ -39,8 +37,14 @@ object RouteProbe {
             }
             val ssl = tls.createSocket(raw, host, port, true) as SSLSocket
             ssl.soTimeout = timeoutMs
-            ssl.sslParameters = ssl.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                ssl.sslParameters = ssl.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }
+            }
             ssl.startHandshake()
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N &&
+                !HttpsURLConnection.getDefaultHostnameVerifier().verify(host, ssl.session)) {
+                throw SSLPeerUnverifiedException("TLS hostname verification failed")
+            }
             val ms = (System.nanoTime() - t0) / 1_000_000L
             runCatching { ssl.close() }
             ms.coerceAtLeast(1)
