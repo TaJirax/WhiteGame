@@ -14,25 +14,30 @@ object DnsClient {
     data class Answer(val ms: Long, val ips: List<String>)
 
     /** One A lookup of [host] against [server]; null when it does not answer in time. */
-    fun query(server: String, host: String, timeoutMs: Int = 2000, protect: (DatagramSocket) -> Unit = {}): Answer? {
+    fun query(server: String, host: String, timeoutMs: Int = 2000, protect: (DatagramSocket) -> Unit = {}, port: Int = 53): Answer? {
         return try {
             DatagramSocket().use { socket ->
                 protect(socket)
-                socket.soTimeout = timeoutMs
                 val id = (Math.random() * 65535).toInt()
                 val q = DnsPacket.buildQuery(id, host)
                 val t0 = System.nanoTime()
-                socket.connect(InetSocketAddress(InetAddress.getByName(server), 53))
+                socket.connect(InetSocketAddress(InetAddress.getByName(server), port))
                 socket.send(DatagramPacket(q, q.size))
                 val buf = ByteArray(1500)
                 while (true) {
+                    val remaining = timeoutMs - (System.nanoTime() - t0) / 1_000_000L
+                    if (remaining <= 0) return null
+                    socket.soTimeout = remaining.toInt()
                     val p = DatagramPacket(buf, buf.size)
                     socket.receive(p)
                     val bytes = buf.copyOf(p.length)
                     // Late answers to an earlier query on a reused port are not ours.
                     if (DnsPacket.id(bytes) != id) continue
+                    if (!DnsPacket.isAnswerTo(bytes, q)) return null
+                    val ips = DnsPacket.parseARecords(bytes)
+                    if (ips.isEmpty()) return null
                     val ms = ((System.nanoTime() - t0) / 1_000_000L).coerceAtLeast(1)
-                    return Answer(ms, DnsPacket.parseARecords(bytes))
+                    return Answer(ms, ips)
                 }
                 @Suppress("UNREACHABLE_CODE")
                 null
@@ -48,6 +53,15 @@ object DnsPacket {
 
     fun id(msg: ByteArray): Int = if (msg.size < 2) -1 else ((msg[0].toInt() and 0xff) shl 8) or (msg[1].toInt() and 0xff)
 
+    /** Require a successful, complete response to this exact A question, rather than any UDP reply. */
+    fun isAnswerTo(msg: ByteArray, query: ByteArray): Boolean {
+        if (msg.size < query.size || query.size < 12 || id(msg) != id(query)) return false
+        val flags = ((msg[2].toInt() and 255) shl 8) or (msg[3].toInt() and 255)
+        if (flags and 0x8000 == 0 || flags and 0x7800 != 0 || flags and 0x0200 != 0 || flags and 0x000f != 0) return false
+        if (msg[4].toInt() != 0 || msg[5].toInt() != 1) return false
+        return msg.copyOfRange(12, query.size).contentEquals(query.copyOfRange(12, query.size))
+    }
+
     fun buildQuery(id: Int, host: String): ByteArray {
         val out = java.io.ByteArrayOutputStream()
         out.write(id shr 8); out.write(id and 0xff)
@@ -56,11 +70,13 @@ object DnsPacket {
         repeat(6) { out.write(0) }                 // no answers / authority / additional
         host.trimEnd('.').split('.').forEach { label ->
             val b = label.toByteArray()
+            require(b.size in 1..63) { "Invalid DNS name" }
             out.write(b.size); out.write(b)
         }
         out.write(0)
         out.write(0); out.write(1)                 // A
         out.write(0); out.write(1)                 // IN
+        require(out.size() <= 255 + 16) { "DNS name is too long" }
         return out.toByteArray()
     }
 
@@ -86,9 +102,10 @@ object DnsPacket {
             skipName()
             if (i + 10 > msg.size) return ips
             val type = u16(i)
+            val recordClass = u16(i + 2)
             val len = u16(i + 8)
             i += 10
-            if (type == 1 && len == 4 && i + 4 <= msg.size) {
+            if (type == 1 && recordClass == 1 && len == 4 && i + 4 <= msg.size) {
                 ips += (0 until 4).joinToString(".") { (msg[i + it].toInt() and 0xff).toString() }
             }
             i += len

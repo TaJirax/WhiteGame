@@ -6,7 +6,7 @@ object GamesData {
     fun fallback(): List<GameInfo> = listOf(
         GameInfo(
             "mlbb", "Mobile Legends", "MOBA",
-            listOf("mlbb.mob.com", "api.mobilelegends.com"),
+            listOf("www.mobilelegends.com", "game.mobilelegends.com"),
             listOf(443), listOf(5000),
             listOf("SG", "ID"), "Critical <60ms"
         ),

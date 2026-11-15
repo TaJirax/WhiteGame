@@ -1,6 +1,7 @@
 package com.whitegame.app.parser
 
 import android.util.Base64
+import com.whitegame.app.connection.AwgConfig
 import com.whitegame.app.model.ProxyNode
 import org.json.JSONObject
 import java.net.URLDecoder
@@ -24,6 +25,7 @@ object ConfigParser {
         for (b in blocks) {
             val lower = b.lowercase()
             when {
+                AwgConfig.isShareLink(b) -> parseOne(b, idx)?.let { out.add(it); idx++ }
                 isWarpFamily(lower) -> parseWarp(b, idx)?.let { out.add(it); idx++ }
                 isWireGuard(lower) -> parseWgIni(b, idx).let { out.add(it); idx++ }
                 isDnsTunnelFamily(lower) && !lower.startsWith("dns-endpoint://") -> {
@@ -196,12 +198,9 @@ object ConfigParser {
     }
 
     private fun parseWgLink(link: String, i: Int): ProxyNode? {
-        val body = link.substringAfter("://")
-        val name = body.substringAfter("#", "").ifBlank { "WireGuard-$i" }
-        val main = body.substringBefore("#")
-        val hostPort = main.substringAfter("@").substringBefore("?")
-        val host = hostPort.substringBeforeLast(":").removePrefix("[").removeSuffix("]")
-        val port = hostPort.substringAfterLast(":").toIntOrNull() ?: 51820
+        val config = AwgConfig.parseShareLink(link)
+        val (host, port) = AwgConfig.splitHostPort(config.primaryEndpoint ?: return null)
+        val name = AwgConfig.shareLinkName(link) ?: "WireGuard-$i"
         return ProxyNode(i, "WireGuard", host, port, name, "—", "udp", link.take(100), true)
     }
 

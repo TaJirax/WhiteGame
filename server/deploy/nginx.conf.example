@@ -1,0 +1,32 @@
+# Include this inside nginx's http context (e.g. /etc/nginx/sites-available/whitegame).
+# Provision a trusted certificate and replace all example paths/names first.
+limit_req_zone $binary_remote_addr zone=whitegame_provision:10m rate=5r/s;
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name provision.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/provision.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/provision.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    client_max_body_size 4k;
+    client_body_timeout 10s;
+    # Do not record public keys, API paths, or enrollment activity in access logs.
+    access_log off;
+
+    location / {
+        limit_req zone=whitegame_provision burst=10 nodelay;
+        limit_req_status 429;
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Connection "";
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 30s;
+        proxy_send_timeout 10s;
+        add_header Cache-Control "no-store" always;
+    }
+}

@@ -3,6 +3,16 @@ package com.whitegame.app.data
 import com.whitegame.app.model.DnsItem
 
 object DnsData {
+    /** Include the requested public resolvers even when the bounded quick scan has many local entries. */
+    internal val preferredScanIps = listOf(
+        "149.112.112.10", "9.9.9.10", "1.1.1.2", "1.1.1.3",
+        "208.67.220.220", "208.67.222.222", "8.8.8.8", "8.8.4.4",
+        "156.154.70.1", "156.154.71.1", "64.6.64.6", "64.6.65.6"
+    )
+
+    fun scanCandidates(items: List<DnsItem>): List<DnsItem> =
+        (items.filter { it.ip in preferredScanIps } + items).distinctBy { it.ip }.take(30)
+
     fun fallback(): List<DnsItem> = listOf(
         DnsItem(1, "178.22.122.100", "Shecan", "Primary · anti-sanction", "IR"),
         DnsItem(2, "185.51.200.2", "Shecan", "Secondary", "IR"),

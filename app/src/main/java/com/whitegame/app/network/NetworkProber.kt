@@ -146,23 +146,13 @@ object NetworkProber {
         UdpProbeResult(avg, loss, jitter, status, rtts.minOrNull(), rtts.maxOrNull())
     }
 
-    suspend fun probeDns(ip: String, probes: Int = 5): Triple<Long?, Int, Long?> = withContext(Dispatchers.IO) {
-        val samples = mutableListOf<Long>()
-        repeat(probes) {
-            val ms = try {
-                val t = measureTimeMillis { InetAddress.getByName(ip).isReachable(1000) }
-                if (t < 1000) t else null
-            } catch (_: Exception) {
-                try { measureTimeMillis { InetAddress.getByName(ip) } } catch (_: Exception) { null }
-            }
-            if (ms != null) samples.add(ms)
-            try { Thread.sleep(60) } catch (_: Exception) {}
+    suspend fun probeDns(ip: String, probes: Int = 5, timeoutMs: Int = 2000, port: Int = 53): Triple<Long?, Int, Long?> = withContext(Dispatchers.IO) {
+        require(probes > 0) { "At least one DNS probe is required" }
+        val samples = List(probes) {
+            DnsClient.query(ip, "example.com", timeoutMs, port = port)?.ms
         }
-        val loss = ((probes - samples.size) * 100) / probes
-        val avg = if (samples.isNotEmpty()) samples.sum() / samples.size else null
-        val jitter = if (samples.size >= 2) samples.maxOrNull()!! - samples.minOrNull()!!
-        else if (samples.size == 1) 0L else null
-        Triple(avg, loss, jitter)
+        val stats = ProbeStats.from(samples)
+        Triple(stats.latencyMs, stats.lossPct ?: 100, stats.jitterMs)
     }
 
     /** Full path suite used by proxy / game testing */

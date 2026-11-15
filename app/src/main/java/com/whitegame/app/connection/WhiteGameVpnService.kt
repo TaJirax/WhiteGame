@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.amnezia.awg.GoBackend
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import javax.inject.Inject
 
 /**
@@ -46,6 +47,12 @@ class WhiteGameVpnService : VpnService() {
 
     @Volatile private var handle: Int = -1
     private var dnsForwarder: DnsForwarder? = null
+    private val reservedRelays = mutableListOf<ReservedUdpRelay>()
+
+    private fun stopReservedRelays() {
+        reservedRelays.forEach { it.close() }
+        reservedRelays.clear()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -171,6 +178,7 @@ class WhiteGameVpnService : VpnService() {
             statsJob?.cancel()
             runCatching { GoBackend.awgTurnOff(old) }
         }
+        stopReservedRelays()
 
         val config = try {
             tunnel.parse()
@@ -200,8 +208,21 @@ class WhiteGameVpnService : VpnService() {
         }
 
         val uapi = try {
-            config.toUapi { resolved[it] }
-        } catch (e: ConfigException) {
+            val enginePeers = config.peers.map { peer ->
+                if (peer.reserved.isEmpty()) peer else {
+                    val endpoint = peer.endpoint ?: throw ConfigException("Reserved peer is missing Endpoint")
+                    val (host, port) = AwgConfig.splitHostPort(endpoint)
+                    val address = resolved[host] ?: throw ConfigException("Cannot resolve endpoint host $host")
+                    val relay = ReservedUdpRelay(InetSocketAddress(address, port), peer.reserved) { protect(it) }
+                    reservedRelays += relay
+                    relay.start()
+                    peer.copy(endpoint = relay.endpoint, reserved = emptyList())
+                }
+            }
+            config.copy(peers = enginePeers).toUapi {
+                if (it == "127.0.0.1") InetAddress.getByName(it) else resolved[it]
+            }
+        } catch (e: Exception) {
             fail("Config error: " + (e.message ?: "invalid"))
             return
         }
@@ -368,12 +389,14 @@ class WhiteGameVpnService : VpnService() {
         if (h != -1) {
             runCatching { GoBackend.awgTurnOff(h) }
         }
+        stopReservedRelays()
         if (h != -1 || stopRequested)
             TunnelBus.emit(TunnelBus.Event.Disconnected(reason, stopRequested))
         // External stops must be reported even during DNS lookup, before a handle exists.
     }
 
     private fun fail(message: String) {
+        stopReservedRelays()
         Log.e(TAG, message)
         lastError = message
         isRunning = false

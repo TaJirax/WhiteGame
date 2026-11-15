@@ -4,8 +4,8 @@
     "name": "Mobile Legends",
     "category": "MOBA",
     "hosts": [
-      "mlbb.mob.com",
-      "api.mobilelegends.com"
+      "www.mobilelegends.com",
+      "game.mobilelegends.com"
     ],
     "tcpPorts": [
       443

@@ -21,3 +21,10 @@ dist/
 .idea/
 *.iml
 .DS_Store
+
+# Self-hosted provisioning runtime state (deploy templates remain tracked).
+__pycache__/
+*.pyc
+server/.env
+server/*.sqlite3*
+server/*.db*

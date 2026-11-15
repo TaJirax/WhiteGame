@@ -17,6 +17,10 @@ import androidx.core.content.ContextCompat
 import com.whitegame.app.connection.TunnelBus
 import com.whitegame.app.connection.TunnelStats
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -206,10 +210,16 @@ object XrayBridge {
     }
 
     /** Real HTTPS round trip through [parsed]. Failure carries the core's reason. */
-    suspend fun delay(context: Context, parsed: XrayConfig.Parsed): Result<Long> {
-        val r = call(context, XrayTestService.MSG_DELAY, XrayConfig.delayConfig(parsed), 30_000)
+    private val delayGate = Mutex()
+
+    suspend fun delay(context: Context, parsed: XrayConfig.Parsed): Result<Long> = delayGate.withLock {
+        // Native tests run on one executor and cannot be interrupted by coroutine cancellation.
+        // Wait for its reply before allowing another caller to enqueue a measurement.
+        val r = withContext(NonCancellable) {
+            call(context, XrayTestService.MSG_DELAY, XrayConfig.delayConfig(parsed), 45_000)
+        }
         val error = r.getString(XrayTestService.KEY_ERROR)
-        return if (error == null && r.getLong(XrayTestService.KEY_MS, -1) >= 0) Result.success(r.getLong(XrayTestService.KEY_MS))
+        if (error == null && r.getLong(XrayTestService.KEY_MS, -1) >= 0) Result.success(r.getLong(XrayTestService.KEY_MS))
         else Result.failure(IllegalStateException(error ?: "no response"))
     }
 

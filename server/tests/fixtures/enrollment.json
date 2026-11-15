@@ -1,0 +1,10 @@
+{
+  "public_key": "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmo=",
+  "server_public_key": "3p7bfXt9wbTTW2HC7OQ1Nz+DQ8hbeGdNrfx+FG+IK08=",
+  "addresses": ["10.8.0.2/32"],
+  "dns": ["1.1.1.1", "1.0.0.1"],
+  "endpoint": "vpn.example.com:51820",
+  "allowed_ips": ["0.0.0.0/0"],
+  "mtu": 1280,
+  "persistent_keepalive": 25
+}

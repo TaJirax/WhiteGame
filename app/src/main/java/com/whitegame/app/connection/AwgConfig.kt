@@ -2,6 +2,7 @@ package com.whitegame.app.connection
 
 import java.net.Inet6Address
 import java.net.InetAddress
+import java.net.URLDecoder
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -51,7 +52,9 @@ data class AwgConfig(
         val presharedKey: String? = null,
         val endpoint: String? = null,
         val allowedIps: List<String> = emptyList(),
-        val persistentKeepalive: String? = null
+        val persistentKeepalive: String? = null,
+        /** WARP's three transport reserved bytes, applied by [ReservedUdpRelay]. */
+        val reserved: List<Int> = emptyList()
     )
 
     val kind: TunnelKind
@@ -82,6 +85,8 @@ data class AwgConfig(
     fun toUapi(
         resolve: (String) -> InetAddress? = { runCatching { InetAddress.getByName(it) }.getOrNull() }
     ): String {
+        if (peers.any { it.reserved.isNotEmpty() })
+            throw ConfigException("Reserved bytes require the WARP UDP transport adapter")
         val sb = StringBuilder()
         sb.append("private_key=").append(Keys.toHex(iface.privateKey)).append('\n')
         iface.listenPort?.let { sb.append("listen_port=").append(it).append('\n') }
@@ -145,6 +150,7 @@ data class AwgConfig(
                 appendLine("AllowedIPs = " + p.allowedIps.joinToString(", "))
             p.endpoint?.let { appendLine("Endpoint = " + it) }
             p.persistentKeepalive?.let { appendLine("PersistentKeepalive = " + it) }
+            if (p.reserved.isNotEmpty()) appendLine("Reserved = " + p.reserved.joinToString(", "))
         }
     }.trim()
 
@@ -192,6 +198,87 @@ data class AwgConfig(
             else -> "0"
         }
 
+        fun isShareLink(text: String): Boolean =
+            text.trim().substringBefore("://").lowercase() in setOf("wireguard", "wg") &&
+                text.trim().contains("://")
+
+        fun shareLinkName(text: String): String? =
+            text.substringAfter('#', "").takeIf { it.isNotBlank() }?.let { decodeLinkValue(it) }
+
+        /**
+         * Imports WireGuard share links without dropping WARP or Amnezia settings. `awg` is a
+         * format/version hint; actual obfuscation is configured by the supplied native fields.
+         * Keys retain literal '+' (also accepted percent-encoded); signature expressions use
+         * form-style '+' for spaces, as emitted by subscription panels.
+         */
+        fun parseShareLink(text: String): AwgConfig {
+            if (!isShareLink(text)) throw ConfigException("Expected a wireguard:// or wg:// link")
+            val body = text.trim().substringAfter("://").substringBefore('#')
+            val authority = body.substringBefore('?')
+            if (!authority.contains('@')) throw ConfigException("WireGuard link is missing its private key")
+            val privateKey = decodeLinkValue(authority.substringBeforeLast('@'), preservePlus = true)
+            val endpoint = authority.substringAfterLast('@').removeSuffix("/")
+            val (host, _) = splitHostPort(endpoint)
+            if (host.isBlank() || host.any { it.isWhitespace() || it in "/?#@" })
+                throw ConfigException("WireGuard link has an invalid endpoint")
+            val values = linkedMapOf<String, String>()
+            for (pair in body.substringAfter('?', "").split('&').filter { it.isNotEmpty() }) {
+                val key = decodeLinkValue(pair.substringBefore('=')).lowercase().replace("_", "")
+                val value = decodeLinkValue(pair.substringAfter('=', ""),
+                    preservePlus = key in setOf("publickey", "presharedkey", "psk", "headerprotectionkey"))
+                if (value.any { it == '\r' || it == '\n' })
+                    throw ConfigException("WireGuard link contains a multiline value for $key")
+                if (values.put(key, value) != null) throw ConfigException("Duplicate WireGuard link field: $key")
+            }
+            if (privateKey.any { it == '\r' || it == '\n' })
+                throw ConfigException("WireGuard link has an invalid private key")
+            val publicKey = values.remove("publickey")?.takeIf { it.isNotBlank() }
+                ?: throw ConfigException("WireGuard link is missing publickey")
+            val addresses = mutableListOf<String>()
+            for (key in listOf("address", "address6")) values.remove(key)?.let { raw ->
+                addresses += splitList(raw).map { if ('/' in it) it else "$it/${if (':' in it) 128 else 32}" }
+            }
+            if (addresses.isEmpty()) throw ConfigException("WireGuard link is missing address")
+            values.remove("awg")?.let {
+                if (it !in setOf("1", "1.5", "2", "3", "3.0", "3.1"))
+                    throw ConfigException("Unsupported AmneziaWG link version: $it")
+            }
+            val aliases = mapOf("cpa" to "contentpaddingaddition", "keepalive" to "persistentkeepalive",
+                "allowedip" to "allowedips", "psk" to "presharedkey")
+            for ((alias, canonical) in aliases) values.remove(alias)?.let {
+                if (values.put(canonical, it) != null) throw ConfigException("Duplicate WireGuard link field: $canonical")
+            }
+            val fields = linkedMapOf<String, String>()
+            for (key in listOf("dns", "mtu", "listenport")) values.remove(key)?.let { fields[key] = it }
+            for (key in AMNEZIA_UAPI.keys) values.remove(key)?.let { fields[key] = it }
+            val peer = linkedMapOf("PublicKey" to publicKey,
+                "AllowedIPs" to (values.remove("allowedips") ?: "0.0.0.0/0, ::/0"), "Endpoint" to endpoint)
+            for (key in listOf("presharedkey", "persistentkeepalive", "reserved"))
+                values.remove(key)?.let { peer[key] = it }
+            if (values.isNotEmpty()) throw ConfigException("Unsupported WireGuard link field: ${values.keys.first()}")
+            return parse(buildString {
+                appendLine("[Interface]")
+                appendLine("PrivateKey = $privateKey")
+                appendLine("Address = ${addresses.joinToString(", ")}")
+                fields.forEach { (key, value) -> appendLine("$key = $value") }
+                appendLine("[Peer]")
+                peer.forEach { (key, value) -> appendLine("$key = $value") }
+            })
+        }
+
+        private fun decodeLinkValue(value: String, preservePlus: Boolean = false): String = try {
+            URLDecoder.decode(if (preservePlus) value.replace("+", "%2B") else value, "UTF-8")
+        } catch (_: IllegalArgumentException) {
+            throw ConfigException("WireGuard link contains invalid percent encoding")
+        }
+
+        private fun parseReserved(value: String): List<Int> {
+            val parts = value.split(',').map { it.trim().toIntOrNull() }
+            if (parts.size != 3 || parts.any { it == null || it !in 0..255 })
+                throw ConfigException("Reserved must contain exactly three bytes between 0 and 255")
+            return parts.map { it!! }
+        }
+
         fun splitHostPort(endpoint: String): Pair<String, Int> {
             val e = endpoint.trim()
             if (e.startsWith("[")) { // [v6]:port
@@ -214,6 +301,7 @@ data class AwgConfig(
          * is case-insensitive on key names, and tolerates # and ; comments.
          */
         fun parse(text: String): AwgConfig {
+            if (isShareLink(text)) return parseShareLink(text)
             var section = ""
             var ifaceSeen = false
             var privateKey = ""
@@ -232,12 +320,15 @@ data class AwgConfig(
             var pPreshared: String? = null
             var pEndpoint: String? = null
             var pKeepalive: String? = null
+            var pReserved: List<Int>? = null
+            var defaultReserved = emptyList<Int>()
             val pAllowed = mutableListOf<String>()
 
             fun flushPeer() {
                 val pk = pPublic ?: return
-                peers.add(Peer(pk, pPreshared, pEndpoint, pAllowed.toList(), pKeepalive))
+                peers.add(Peer(pk, pPreshared, pEndpoint, pAllowed.toList(), pKeepalive, pReserved ?: defaultReserved))
                 pPublic = null; pPreshared = null; pEndpoint = null; pKeepalive = null
+                pReserved = null
                 pAllowed.clear()
             }
 
@@ -268,6 +359,7 @@ data class AwgConfig(
                             ?: throw ConfigException("ListenPort " + value + " is not a number")
                         "excludedapplications" -> excluded += splitList(value)
                         "includedapplications" -> included += splitList(value)
+                        "reserved" -> defaultReserved = parseReserved(value)
                         else -> when {
                             // "100 - 200" is a range too; the engine only reads "100-200".
                             AMNEZIA_UAPI.containsKey(key) -> amnezia[key] =
@@ -281,6 +373,7 @@ data class AwgConfig(
                         "presharedkey" -> pPreshared = value
                         "endpoint" -> pEndpoint = value
                         "allowedips" -> pAllowed += splitList(value)
+                        "reserved" -> pReserved = parseReserved(value)
                         "persistentkeepalive" -> pKeepalive =
                             if (value.equals("off", true)) null
                             else value.also { unsignedRange(it, "PersistentKeepalive", 65535) }
@@ -309,6 +402,15 @@ data class AwgConfig(
                 if (it !in 576..9000) throw ConfigException("MTU " + it + " is out of range (576-9000)")
             }
             validateAmnezia(amnezia)
+            if (peers.any { it.reserved.isNotEmpty() }) {
+                val changedHeaders = (1..4).any { amnezia["h$it"]?.let { v -> v != it.toString() } == true }
+                val changedPadding = (1..4).any { amnezia["s$it"]?.let { v -> v != "0" } == true }
+                if (changedHeaders || changedPadding)
+                    throw ConfigException("Reserved requires standard WireGuard H1-H4 headers and zero S1-S4 padding")
+                if (amnezia.containsKey("headerprotectionkey") ||
+                    amnezia["randomtrailers"]?.let { uapiBool(it) == "1" } == true)
+                    throw ConfigException("Reserved is incompatible with HeaderProtectionKey and enabled RandomTrailers")
+            }
 
             return AwgConfig(
                 Iface(

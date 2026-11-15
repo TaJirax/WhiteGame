@@ -1,0 +1,35 @@
+[Unit]
+Description=WhiteGame WireGuard peer provisioning
+Requires=wg-quick@wg0.service
+After=network-online.target wg-quick@wg0.service
+Wants=network-online.target
+PartOf=wg-quick@wg0.service
+
+[Service]
+Type=simple
+User=whitegame-provision
+Group=whitegame-provision
+EnvironmentFile=/etc/whitegame-provision.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+WorkingDirectory=/opt/whitegame/server
+ExecStart=/usr/bin/python3 /opt/whitegame/server/provision.py
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=15s
+StateDirectory=whitegame-provision
+StateDirectoryMode=0700
+UMask=0077
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+[Install]
+WantedBy=multi-user.target

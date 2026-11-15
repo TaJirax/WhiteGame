@@ -17,41 +17,63 @@ import javax.net.ssl.SSLSocket
  */
 object RouteProbe {
 
+    enum class Failure(val label: String) {
+        DNS("DNS lookup failed"), CONNECT("TCP connection failed"),
+        PROXY("Proxy connection failed"), TLS("TLS handshake failed")
+    }
+    data class Result(val ms: Long? = null, val failure: Failure? = null)
+
     private val tls = javax.net.ssl.SSLSocketFactory.getDefault() as javax.net.ssl.SSLSocketFactory
 
     /**
      * Milliseconds to [host]:[port] with TLS done, or null. [ip] pins the address (a DNS server's
      * answer); [socksPort] sends it through a local SOCKS5 proxy (an Xray config) instead.
      */
-    fun handshakeMs(host: String, port: Int = 443, ip: String? = null, socksPort: Int? = null, timeoutMs: Int = 3500): Long? {
-        var raw: Socket? = null
-        return try {
-            val t0 = System.nanoTime()
-            val target = if (socksPort == null) InetAddress.getByName(ip ?: host) else null
-            raw = Socket().apply { soTimeout = timeoutMs }
-            if (socksPort != null) {
-                raw.connect(InetSocketAddress("127.0.0.1", socksPort), 1000)
-                socks5Connect(raw, host, port)
-            } else {
-                raw.connect(InetSocketAddress(target, port), timeoutMs)
+    fun handshakeMs(host: String, port: Int = 443, ip: String? = null, socksPort: Int? = null, timeoutMs: Int = 3500): Long? =
+        probe(host, port, ip?.let(::listOf), socksPort, timeoutMs).ms
+
+    /** Try the resolver's addresses within one budget; a stale first answer need not fail a route. */
+    fun probe(host: String, port: Int = 443, ips: List<String>? = null, socksPort: Int? = null, timeoutMs: Int = 3500): Result {
+        val started = System.nanoTime()
+        val targets = if (socksPort != null) listOf<InetAddress?>(null) else try {
+            (ips?.flatMap { InetAddress.getAllByName(it).toList() }
+                ?: InetAddress.getAllByName(host).toList()).distinct().take(4)
+        } catch (_: Exception) { return Result(failure = Failure.DNS) }
+        if (targets.isEmpty()) return Result(failure = Failure.DNS)
+        fun remainingMs() = (timeoutMs - (System.nanoTime() - started) / 1_000_000L).toInt().coerceAtLeast(1)
+        var failure = if (socksPort == null) Failure.CONNECT else Failure.PROXY
+        for ((index, target) in targets.withIndex()) {
+            if ((System.nanoTime() - started) / 1_000_000L >= timeoutMs) break
+            var phase = if (socksPort == null) Failure.CONNECT else Failure.PROXY
+            try {
+                Socket().use { raw ->
+                    raw.soTimeout = remainingMs()
+                    if (socksPort != null) {
+                        raw.connect(InetSocketAddress("127.0.0.1", socksPort), minOf(1000, remainingMs()))
+                        socks5Connect(raw, host, port)
+                    } else {
+                        raw.connect(InetSocketAddress(target, port), (remainingMs() / (targets.size - index)).coerceAtLeast(1))
+                    }
+                    phase = Failure.TLS
+                    (tls.createSocket(raw, host, port, true) as SSLSocket).use { ssl ->
+                        ssl.soTimeout = remainingMs()
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            ssl.sslParameters = ssl.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }
+                        }
+                        ssl.startHandshake()
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N &&
+                            !HttpsURLConnection.getDefaultHostnameVerifier().verify(host, ssl.session)) {
+                            throw SSLPeerUnverifiedException("TLS hostname verification failed")
+                        }
+                        return Result(ms = ((System.nanoTime() - started) / 1_000_000L).coerceAtLeast(1))
+                    }
+                }
+            } catch (_: Exception) {
+                // A TLS error is more useful than a later address refusing TCP.
+                if (failure != Failure.TLS) failure = phase
             }
-            val ssl = tls.createSocket(raw, host, port, true) as SSLSocket
-            ssl.soTimeout = timeoutMs
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                ssl.sslParameters = ssl.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }
-            }
-            ssl.startHandshake()
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N &&
-                !HttpsURLConnection.getDefaultHostnameVerifier().verify(host, ssl.session)) {
-                throw SSLPeerUnverifiedException("TLS hostname verification failed")
-            }
-            val ms = (System.nanoTime() - t0) / 1_000_000L
-            runCatching { ssl.close() }
-            ms.coerceAtLeast(1)
-        } catch (_: Exception) {
-            runCatching { raw?.close() }
-            null
         }
+        return Result(failure = failure)
     }
 
     /** Minimal SOCKS5 CONNECT with a domain name, so the proxy resolves it the way games would. */
@@ -68,7 +90,11 @@ object RouteProbe {
         if (head[0].toInt() != 5 || head[1].toInt() != 0) error("SOCKS connect failed")
         when (head[3].toInt()) {
             1 -> input.readExactly(4 + 2)
-            3 -> input.readExactly((input.read() and 0xff) + 2)
+            3 -> {
+                val length = input.read()
+                require(length >= 0) { "SOCKS reply closed" }
+                input.readExactly(length + 2)
+            }
             4 -> input.readExactly(16 + 2)
             else -> error("Invalid SOCKS address type")
         }

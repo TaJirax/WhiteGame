@@ -97,6 +97,7 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
     var editing by remember { mutableStateOf<EditorTarget?>(null) }
     var confirmDelete by remember { mutableStateOf<SavedTunnel?>(null) }
     var expandedId by remember { mutableStateOf<String?>(null) }
+    var visibleSubscriptionCount by remember(vm.subNodes.size) { mutableStateOf(12) }
 
     val fileLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -201,6 +202,10 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
         }
 
         VSpace(Space.xl)
+        HostedSetup()
+        VSpace(Space.md)
+        WarpSetup()
+        VSpace(Space.xl)
         SectionHeader("Subscription", "Your own server list")
         VSpace(Space.sm)
         Field(
@@ -218,7 +223,7 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
                 if (vm.busySub) "Loading" else "Load list",
                 onClick = { vm.refreshSubscription() },
                 loading = vm.busySub,
-                enabled = vm.subUrl.isNotBlank(),
+                enabled = vm.subUrl.isNotBlank() && !vm.busyScan,
                 icon = Icons.Outlined.Refresh,
                 modifier = Modifier.weight(1f),
                 height = 46.dp
@@ -227,7 +232,7 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
                 if (vm.busyScan) "Scanning" else "Rank by ping",
                 onClick = { vm.scanSubscriptionNodes() },
                 loading = vm.busyScan,
-                enabled = vm.subNodes.isNotEmpty(),
+                enabled = vm.subNodes.isNotEmpty() && !vm.busySub,
                 modifier = Modifier.weight(1f),
                 height = 46.dp
             )
@@ -256,7 +261,7 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
         if (vm.subNodes.isNotEmpty()) {
             VSpace(Space.sm)
             RowGroup {
-                vm.subNodes.take(12).forEachIndexed { i, n ->
+                vm.subNodes.take(visibleSubscriptionCount).forEachIndexed { i, n ->
                     if (i > 0) Hairline()
                     Row(
                         Modifier.fillMaxWidth().padding(horizontal = Space.lg, vertical = 12.dp),
@@ -273,6 +278,13 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
                                 color = Trace3, style = Type.monoSm,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis
                             )
+                            if (n.status != "\u2014") {
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    n.status, color = Trace3, style = Type.monoSm,
+                                    maxLines = 2, overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                         if (n.pingMs != null) {
                             Spacer(Modifier.width(Space.sm))
@@ -292,6 +304,15 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
                     }
                 }
             }
+        }
+        if (visibleSubscriptionCount < vm.subNodes.size) {
+            VSpace(Space.sm)
+            SecondaryButton(
+                "Show more (" + visibleSubscriptionCount + " of " + vm.subNodes.size + ")",
+                onClick = { visibleSubscriptionCount += 12 },
+                modifier = Modifier.fillMaxWidth(),
+                height = 44.dp
+            )
         }
 
         VSpace(Space.xxl)

@@ -241,9 +241,8 @@ class AwgConfigTest {
 
     @Test
     fun acceptsWarpAmneziaWithWireGuardsOwnHeaders() {
-        // What the BlueKnight panel's /sub/amnezia emits for Cloudflare WARP, Reserved included.
-        val conf = wireGuardConf("Jc = 5\nJmin = 10\nJmax = 50\nS1 = 15\nS2 = 25\nH1 = 1\nH2 = 2\nH3 = 3\nH4 = 4") +
-            "\nReserved = 12,34,56"
+        // WireGuard's default headers work with junk/signature packets too.
+        val conf = wireGuardConf("Jc = 5\nJmin = 10\nJmax = 50\nS1 = 15\nS2 = 25\nH1 = 1\nH2 = 2\nH3 = 3\nH4 = 4")
         val c = AwgConfig.parse(conf)
         assertEquals(TunnelKind.AMNEZIA, c.kind)
         val uapi = c.toUapi(resolver)

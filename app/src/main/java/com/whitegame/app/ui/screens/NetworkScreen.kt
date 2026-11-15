@@ -513,7 +513,7 @@ private fun ComparisonRouteCard(row: GamesViewModel.RouteRow) {
                 ProbeMetrics(stats.latencyMs, stats.jitterMs, stats.lossPct)
                 Text(when {
                     stats.attempts == 0 -> "Waiting for first response"
-                    stats.successful == 0 -> "No response from this endpoint | ${stats.attempts} probes"
+                    stats.successful == 0 -> "${row.lastFailure ?: "No response from this endpoint"} | ${stats.attempts} probes"
                     else -> "${stats.successful} of ${stats.attempts} probes answered"
                 }, color = Trace3, style = Type.small)
             }
@@ -594,7 +594,7 @@ private fun GamesSection(vm: GamesViewModel = hiltViewModel()) {
             }
         }
         item { ProgressStrip(vm.scanning || vm.updating, vm.updateMessage) }
-        item { Text("Compare game endpoints across DNS and saved configs. TLS delay estimates connection setup, not gameplay ping. Probe loss counts failed tests, not UDP packets.", style = Type.small, color = Trace3) }
+        item { Text("Compare game publisher/service HTTPS endpoints across DNS and saved configs. TLS delay estimates connection setup, not gameplay ping. Probe loss counts failed tests, not UDP packets.", style = Type.small, color = Trace3) }
         if (vm.comparisonGame != null) {
             item {
                 RowGroup {

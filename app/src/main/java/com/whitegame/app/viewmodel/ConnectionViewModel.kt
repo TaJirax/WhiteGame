@@ -18,6 +18,7 @@ import com.whitegame.app.connection.TunnelKind
 import com.whitegame.app.connection.TunnelStats
 import com.whitegame.app.connection.TunnelStore
 import com.whitegame.app.data.AssetLoader
+import com.whitegame.app.data.SubscriptionScan
 import com.whitegame.app.data.ConfigSubscription
 import com.whitegame.app.data.DnsData
 import com.whitegame.app.model.IspScanResult
@@ -29,13 +30,13 @@ import com.whitegame.app.xray.XrayBridge
 import com.whitegame.app.xray.XrayConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.withPermit
 import javax.inject.Inject
 
@@ -288,22 +289,33 @@ class ConnectionViewModel @Inject constructor(
 
     /** The list is whatever the user points at — nothing is fetched from a built-in link. */
     fun updateSubUrl(value: String) {
+        if (subUrl.trim() != value.trim()) {
+            subNodes = emptyList()
+            subMessage = ""
+        }
         subUrl = value
         subscription.url = value
     }
 
     fun refreshSubscription() {
-        if (busySub) return
+        if (busySub || busyScan) return
+        val requestedUrl = subUrl
         busySub = true
         subMessage = "Loading configs…"
         viewModelScope.launch {
             try {
-                val nodes = withContext(Dispatchers.IO) { subscription.fetch(subUrl) }
+                val nodes = withContext(Dispatchers.IO) { subscription.fetch(requestedUrl) }
+                if (subUrl != requestedUrl) {
+                    subMessage = "URL changed - load the new list"
+                    return@launch
+                }
                 subNodes = nodes
                 val usable = nodes.count { it.conf.isNotBlank() }
                 subMessage = "Loaded " + nodes.size + " server" + (if (nodes.size == 1) "" else "s") +
                     if (usable > 0) " · " + usable + " can be added as tunnels"
                     else " · ping only: this list carries no keys"
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 subMessage = "Subscription error: " + (e.message ?: "failed")
             } finally {
@@ -324,16 +336,19 @@ class ConnectionViewModel @Inject constructor(
     private suspend fun measureThroughProxy(n: SubNode): SubNode {
         val parsed = runCatching { XrayConfig.parse(n.conf) }.getOrNull()
             ?: return n.copy(pingMs = null, lossPct = 100, score = 0, status = "Bad config")
-        // A dead node otherwise sits on the core's 30s timeout and stalls the queue.
-        val ms = withTimeoutOrNull(9_000) {
-            XrayBridge.delay(context, parsed).getOrNull()
+        // The native call owns its timeout. Cancelling the caller after nine seconds
+        // does not stop the Go worker; it queues every later probe behind a still-running
+        // one and makes healthy nodes appear dead.
+        val result = XrayBridge.delay(context, parsed)
+        return SubscriptionScan.proxyResult(n, result.getOrNull(), result.exceptionOrNull()?.message)
+    }
+
+    private suspend fun measureThroughWireGuard(n: SubNode): SubNode {
+        val parsed = runCatching { SubscriptionScan.wireGuardParsed(n) }.getOrElse {
+            return n.copy(pingMs = null, lossPct = null, score = 0, status = it.message ?: "Connect to test UDP tunnel")
         }
-        return n.copy(
-            pingMs = ms,
-            lossPct = if (ms != null) 0 else 100,
-            score = if (ms != null) DnsData.scoreDns(ms, 0, 0L).first else 0,
-            status = if (ms != null) "OK" else "Unreachable"
-        )
+        val result = XrayBridge.delay(context, parsed)
+        return SubscriptionScan.proxyResult(n, result.getOrNull(), result.exceptionOrNull()?.message, "WireGuard HTTPS")
     }
 
     fun importNode(node: SubNode) {
@@ -364,11 +379,17 @@ class ConnectionViewModel @Inject constructor(
     }
 
     fun scanSubscriptionNodes() {
-        if (busyScan) return
+        if (busyScan || busySub) return
+        if (state.isLive && activeTunnel?.isXray != true) {
+            subMessage = "Disconnect the active WireGuard tunnel before ranking endpoints"
+            return
+        }
         if (subNodes.isEmpty()) {
             subMessage = "Load the subscription first"
             return
         }
+        val nodes = subNodes.toList()
+        val requestedUrl = subUrl
         busyScan = true
         subMessage = "Scanning " + subNodes.size + " nodes…"
         viewModelScope.launch {
@@ -378,27 +399,55 @@ class ConnectionViewModel @Inject constructor(
                     // The test core handles one request at a time, so proxy measurements
                     // queue rather than run four deep.
                     val proxyGate = kotlinx.coroutines.sync.Semaphore(1)
-                    subNodes.map { n ->
+                    var completed = 0
+                    nodes.map { n ->
                         async {
-                            if (XrayConfig.looksLikeXray(n.conf)) proxyGate.withPermit {
-                                measureThroughProxy(n)
-                            } else gate.withPermit {
-                                val r = NetworkProber.probeTcp(n.host, n.port, 3, 2500)
-                                n.copy(
-                                    pingMs = r.avgMs,
-                                    lossPct = r.lossPct,
-                                    score = DnsData.scoreDns(r.avgMs, r.lossPct, r.jitterMs).first,
-                                    status = if (r.avgMs != null) "OK" else "Unreachable"
+                            val measured = when (SubscriptionScan.probeFor(n)) {
+                                SubscriptionScan.Probe.PROXY -> proxyGate.withPermit { measureThroughProxy(n) }
+                                SubscriptionScan.Probe.WIREGUARD -> proxyGate.withPermit { measureThroughWireGuard(n) }
+                                SubscriptionScan.Probe.TUNNEL -> n.copy(
+                                    pingMs = null, lossPct = null, score = 0,
+                                    status = SubscriptionScan.tunnelStatus(n)
                                 )
+                                SubscriptionScan.Probe.TCP -> gate.withPermit {
+                                    val r = NetworkProber.probeTcp(n.host, n.port, 3, 2500)
+                                    n.copy(
+                                        pingMs = r.avgMs,
+                                        lossPct = r.lossPct,
+                                        score = DnsData.scoreDns(r.avgMs, r.lossPct, r.jitterMs).first,
+                                        status = if (r.avgMs != null) "TCP only" else "No TCP response"
+                                    )
+                                }
                             }
+                            withContext(Dispatchers.Main) {
+                                completed++
+                                if (subUrl == requestedUrl) {
+                                    subNodes = subNodes.map { if (it.id == measured.id) measured else it }
+                                    subMessage = "Scanned " + completed + " of " + nodes.size + " nodes"
+                                }
+                            }
+                            measured
                         }
                     }.awaitAll()
                 }
-                subNodes = scanned.sortedByDescending { it.score }
+                if (subUrl != requestedUrl) {
+                    subMessage = "URL changed - load the new list"
+                    return@launch
+                }
+                if (state.isLive && activeTunnel?.isXray != true) {
+                    subNodes = nodes.map { it.copy(pingMs = null, lossPct = null, score = 0, status = "Route changed - scan again") }
+                    subMessage = "Tunnel started during ranking. Disconnect it and scan again."
+                    return@launch
+                }
+                subNodes = SubscriptionScan.rank(scanned)
                 val best = subNodes.firstOrNull { it.pingMs != null }
-                subMessage = if (best != null)
-                    "Best: " + best.flag + " " + best.name.take(24) + " · " + best.pingMs + "ms"
-                else "No reachable nodes"
+                val skipped = subNodes.count { SubscriptionScan.probeFor(it) == SubscriptionScan.Probe.TUNNEL }
+                subMessage = (if (best != null)
+                    "Best: " + best.name.take(24) + " / " + best.pingMs + "ms (" + best.status + ")"
+                else "No measured nodes responded") +
+                    if (skipped > 0) " / " + skipped + " UDP tunnel(s): connect to test" else ""
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 subMessage = "Scan failed: " + (e.message ?: "error")
             } finally {
@@ -442,7 +491,7 @@ class ConnectionViewModel @Inject constructor(
                 }
                 val dns = withContext(Dispatchers.IO) {
                     val gate = kotlinx.coroutines.sync.Semaphore(4)
-                    assetLoader.loadDns().take(30).map { d -> async { gate.withPermit {
+                    DnsData.scanCandidates(assetLoader.loadDns()).map { d -> async { gate.withPermit {
                         val (avg, loss, jitter) = NetworkProber.probeDns(d.ip, 3)
                         if (avg == null) return@withPermit null
                         val (score, _) = DnsData.scoreDns(avg, loss, jitter)

@@ -96,4 +96,75 @@ class SubscriptionParseTest {
         assertTrue(nodes[0].conf.startsWith("vless://"))
         assertTrue(nodes[1].conf.startsWith("trojan://"))
     }
+    @Test fun `BOM and URL-safe wrapped subscriptions retain every link`() {
+        val encoded = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(shareLinks.toByteArray())
+        assertEquals(2, ConfigSubscription.parse("\uFEFF" + encoded.chunked(30).joinToString("\n")).size)
+    }
+
+    @Test fun `mixed WireGuard configs links and bare endpoints all survive`() {
+        val nodes = ConfigSubscription.parse(twoConfigs + "\n" + shareLinks + "\nraw.example.com:8443")
+        assertEquals(5, nodes.size)
+        assertEquals(2, nodes.count { it.conf.startsWith("[Interface]") })
+        assertEquals(2, nodes.count { it.conf.startsWith("vless://") || it.conf.startsWith("trojan://") })
+        assertEquals(1, nodes.count { it.conf.isBlank() })
+        assertTrue(nodes.filter { it.conf.startsWith("[Interface]") }.none { it.conf.contains("trojan://") })
+    }
+
+    @Test fun `Xray JSON array keeps each outbound importable`() {
+        val first = com.whitegame.app.xray.XrayConfig.parse(shareLinks.lines()[0]).outbound
+        val second = com.whitegame.app.xray.XrayConfig.parse(shareLinks.lines()[1]).outbound
+        val json = org.json.JSONObject().put("outbounds", org.json.JSONArray().put(first).put(second))
+        val nodes = ConfigSubscription.parse("[" + json.toString() + "]")
+        assertEquals(2, nodes.size)
+        assertTrue(nodes.all { com.whitegame.app.xray.XrayConfig.parse(it.conf).host == it.host })
+    }
+
+    @Test fun `malformed links HTML and out-of-range ports cannot become fake endpoints`() {
+        assertTrue(ConfigSubscription.parse("vless://@edge.example.com:443").isEmpty())
+        assertTrue(ConfigSubscription.parse("unknown://user@edge.example.com:443").isEmpty())
+        assertTrue(ConfigSubscription.parse("<a href='https://edge.example.com:443'>login</a>").isEmpty())
+        assertTrue(ConfigSubscription.parse("edge.example.com:65536\nedge.example.com:0").isEmpty())
+        assertTrue(ConfigSubscription.parse("{broken json").isEmpty())
+    }
+
+    @Test fun `base64 bare endpoints support IPv6 and every valid port`() {
+        val text = "[2001:db8::1]:9 # IPv6\nexample.com:65535"
+        val nodes = ConfigSubscription.parse(java.util.Base64.getEncoder().encodeToString(text.toByteArray()))
+        assertEquals(2, nodes.size)
+        assertEquals("2001:db8::1", nodes[0].host)
+        assertEquals(9, nodes[0].port)
+        assertEquals(65535, nodes[1].port)
+    }
+
+    @Test fun `sing-box WireGuard preserves DNS reserved bytes and IPv6 endpoint`() {
+        val json = """{
+            "endpoints": [{"type":"wireguard", "tag":"WARP",
+                "private_key":"yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=",
+                "address":["172.16.0.2/32"], "dns":["1.1.1.1","1.0.0.1"],
+                "peers":[{"address":"2001:db8::1", "port":2408,
+                    "public_key":"xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+                    "reserved":[49,132,132]}]}]
+        }"""
+        val root = org.json.JSONObject(json)
+        val malformed = org.json.JSONObject(root.getJSONArray("endpoints").getJSONObject(0).toString())
+        malformed.getJSONArray("peers").getJSONObject(0).put("reserved", org.json.JSONArray().put("invalid"))
+        root.getJSONArray("endpoints").put(malformed)
+        val nodes = ConfigSubscription.parse(root.toString())
+        assertEquals(1, nodes.size)
+        val parsed = com.whitegame.app.connection.AwgConfig.parse(nodes.single().conf)
+        assertEquals(listOf("1.1.1.1", "1.0.0.1"), parsed.iface.dnsServers)
+        assertEquals(listOf(49,132,132), parsed.peers.single().reserved)
+        assertEquals("[2001:db8::1]:2408", parsed.primaryEndpoint)
+    }
+
+    @Test fun `WireGuard share links stay importable beside Xray links`() {
+        val privateKey = java.net.URLEncoder.encode("yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=", "UTF-8")
+        val publicKey = java.net.URLEncoder.encode("xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=", "UTF-8")
+        val wg = "wireguard://$privateKey@engage.cloudflareclient.com:2408?publickey=$publicKey&address=172.16.0.2%2F32#Warp"
+        val nodes = ConfigSubscription.parse(wg + "\n" + shareLinks)
+        assertEquals(3, nodes.size)
+        assertEquals("Warp", nodes[0].name)
+        assertTrue(nodes[0].conf.startsWith("[Interface]"))
+    }
+
 }

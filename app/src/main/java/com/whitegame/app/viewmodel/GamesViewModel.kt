@@ -396,7 +396,7 @@ class GamesViewModel @Inject constructor(
         }
     }
 
-    data class RouteRow(val label: String, val samples: List<Long?> = emptyList(), val error: String? = null) {
+    data class RouteRow(val label: String, val samples: List<Long?> = emptyList(), val error: String? = null, val lastFailure: String? = null) {
         val stats get() = com.whitegame.app.network.ProbeStats.from(samples)
     }
     var comparisons by mutableStateOf<List<RouteRow>>(emptyList())
@@ -425,7 +425,7 @@ class GamesViewModel @Inject constructor(
 
     fun compareGame(game: GameInfo) {
         if (comparisonJob?.isActive == true || comparing) return
-        val host = game.hosts.firstOrNull() ?: return
+        if (game.hosts.none { it.isNotBlank() }) return
         val port = 443
         comparisonGame = game.name
         comparing = true
@@ -442,30 +442,45 @@ class GamesViewModel @Inject constructor(
                 val configs = tunnelStore.tunnels.value.filter { it.isXray }.take(4)
                 val proxies = configs.map { com.whitegame.app.network.RouteProbe.freePort() to it.parseXray() }
                 val active = tunnelController.state.value.isLive && tunnelController.activeTunnel.value?.isXray != true
-                comparisonMessage = "$host:$port\nTLS handshake | last 20 probes" +
-                    (if (active) "\nActive VPN routing may affect these results" else "")
+                comparisonMessage = "Checking catalog HTTPS endpoints..."
                 val socksError = if (proxies.isEmpty()) null else {
                     socksStarted = true
                     com.whitegame.app.xray.XrayBridge.startSocks(context, proxies)
                 }
                 comparisons = listOf(RouteRow("Current app route")) +
                     dns.map { RouteRow("DNS " + it.ip) } + configs.map { RouteRow(it.name, error = socksError) }
-                while (kotlinx.coroutines.currentCoroutineContext().isActive) {
-                    val values = withContext(Dispatchers.IO) {
+                suspend fun sample(host: String) = withContext(Dispatchers.IO) {
                         comparisons.indices.map { i -> async {
                             when {
-                                i == 0 -> com.whitegame.app.network.RouteProbe.handshakeMs(host, port)
+                                i == 0 -> com.whitegame.app.network.RouteProbe.probe(host, port)
                                 i <= dns.size -> {
                                     val answer = com.whitegame.app.network.DnsClient.query(dns[i - 1].ip, host)
-                                    answer?.ips?.firstOrNull()?.let { com.whitegame.app.network.RouteProbe.handshakeMs(host, port, ip = it)?.plus(answer.ms) }
+                                    if (answer == null || answer.ips.isEmpty()) com.whitegame.app.network.RouteProbe.Result(failure = com.whitegame.app.network.RouteProbe.Failure.DNS)
+                                    else com.whitegame.app.network.RouteProbe.probe(host, port, ips = answer.ips).let { result ->
+                                        result.copy(ms = result.ms?.plus(answer.ms))
+                                    }
                                 }
-                                socksError != null -> null
-                                else -> com.whitegame.app.network.RouteProbe.handshakeMs(host, port, socksPort = proxies[i - dns.size - 1].first)
+                                socksError != null -> com.whitegame.app.network.RouteProbe.Result(failure = com.whitegame.app.network.RouteProbe.Failure.PROXY)
+                                else -> com.whitegame.app.network.RouteProbe.probe(host, port, socksPort = proxies[i - dns.size - 1].first)
                             }
                         } }.awaitAll()
-                    }
-                    comparisons = comparisons.mapIndexed { i, row -> row.copy(samples = (row.samples + values[i]).takeLast(20)) }
+                }
+                fun record(values: List<com.whitegame.app.network.RouteProbe.Result>) {
+                    comparisons = comparisons.mapIndexed { i, row -> row.copy(
+                        samples = (row.samples + values[i].ms).takeLast(20), lastFailure = values[i].failure?.label) }
+                }
+                val selected = com.whitegame.app.network.GameComparison.selectEndpoint(game.hosts) { candidate ->
+                    comparisonMessage = "Checking catalog HTTPS endpoints...\n$candidate:$port"
+                    sample(candidate)
+                }
+                val host = selected.host
+                comparisonMessage = "$host:$port\nPublisher/service HTTPS probe | last 20 probes" +
+                    (if (selected.results.none { it.ms != null }) "\nNone of ${selected.checked} catalog endpoints answered. Check the connection or update the catalog." else "") +
+                    (if (active) "\nActive VPN routing may affect these results" else "")
+                record(selected.results)
+                while (kotlinx.coroutines.currentCoroutineContext().isActive) {
                     kotlinx.coroutines.delay(2000)
+                    record(sample(host))
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e

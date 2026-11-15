@@ -1,0 +1,59 @@
+name: Provisioning server tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provisioning-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Python ${{ matrix.python }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.10', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Run HTTP, persistence, command and admin tests
+        run: python -m unittest discover -s server/tests -v
+
+  wireguard:
+    name: Isolated Linux WireGuard integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install WireGuard and namespace tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes wireguard-tools iproute2 iputils-ping util-linux
+      - name: Test enrollment, encrypted traffic, restart and revocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          export WHITEGAME_PARENT_NETNS="$(readlink /proc/self/ns/net)"
+          export WHITEGAME_LIVE_WG=1
+          export WG_TEST_BIN=/usr/bin/wg
+          sudo --preserve-env=WHITEGAME_PARENT_NETNS,WHITEGAME_LIVE_WG,WG_TEST_BIN \
+            unshare --net -- python3 -m unittest discover -s server/tests -p test_live_wireguard.py -v

@@ -22,6 +22,39 @@ Kotlin, Jetpack Compose, Hilt. `minSdk 23` (Android 6.0), `targetSdk 34`.
     AndroidLibXrayLite, run in a separate `:xray` process
 - **DNS-only mode** — a VPN that routes nothing but DNS, for when only
   resolution needs to change.
+- **WARP setup** — in Tunnels, open **WARP setup / endpoint scan**, review
+  Cloudflare's terms, and create a profile. Keys are generated on the phone;
+  only the public key is registered. An existing generated profile is reused.
+  Registration uses Cloudflare's consumer API and can be unavailable or refused;
+  importing a provider config remains available.
+- **Self-hosted setup** — register with your own WireGuard provisioning server
+  over HTTPS. The phone keeps its private key; the server allocates an address
+  and adds its public key to your WireGuard interface. Linux service, TLS proxy,
+  and routing instructions are in [server/README.md](server/README.md).
+- **WireGuard endpoint scans** — select a standard, single-peer full-tunnel
+  profile and enter endpoint addresses, one `host:port` per line (IPv6 uses
+  `[address]:port`). Tests complete HTTPS through authenticated WireGuard using
+  the bundled Xray core. Disconnect the active tunnel before scanning. **Use best** saves
+  the endpoint for the next connection. These times include connection setup;
+  they are not gameplay ping. Android 7+ is required for this test core.
+- **Share-link imports** — `wireguard://` and `wg://` links preserve dual-stack
+  addresses, WARP Reserved bytes, and supported AmneziaWG settings including
+  CPA and I1–I5 packet expressions. Obfuscated profiles are tested by connecting
+  them; standard WireGuard probes do not discard their obfuscation settings.
+
+Game comparisons try alternate catalog HTTPS hosts when no route reaches the
+first one, then keep every route on the same chosen host. DNS rankings send
+actual DNS queries and count unsuccessful or invalid replies as failed probes.
+
+WARP's Reserved extension is supplied by a protected UDP adapter around the
+bundled AmneziaWG engine, which does not implement those bytes itself. Modified
+WireGuard message headers or handshake padding cannot be combined with Reserved
+in this adapter. Normal Amnezia signature/junk packets pass through unchanged.
+The self-hosted API provisions peers on your own configured WireGuard interface;
+an ordinary manually generated key still needs server-side registration.
+
+Protocol references for maintenance: [Xray WireGuard outbound](https://xtls.github.io/en/config/outbounds/wireguard.html),
+[wgcf consumer registration implementation](https://github.com/ViRb3/wgcf/blob/master/cloudflare/api.go).
 
 ## Building
 
@@ -66,6 +99,7 @@ and tests; debug builds fall back to the local Android debug key and
 | `app/src/main/java/org/amnezia/awg` | JNI shim — package and class names are fixed by `libwg-go.so` |
 | `app/src/main/jniLibs` | Prebuilt `libwg-go.so` per ABI |
 | `app/libs/libv2ray.aar` | Prebuilt Xray core (AndroidLibXrayLite) |
+| `server/` | Self-hosted WireGuard provisioning API, tests, and Linux deployment configuration |
 
 ## Third-party code
 

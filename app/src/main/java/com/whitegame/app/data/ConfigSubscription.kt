@@ -1,6 +1,7 @@
 package com.whitegame.app.data
 
 import android.content.Context
+import com.whitegame.app.connection.AwgConfig
 import com.whitegame.app.model.SubNode
 import com.whitegame.app.xray.XrayConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -37,55 +38,83 @@ class ConfigSubscription @Inject constructor(
             prefs.edit().putString(KEY_URL, value.trim()).apply()
         }
 
-    fun fetch(from: String = url): List<SubNode> {
-        val target = from.trim()
-        if (target.isBlank()) error("Set your subscription URL first")
-        if (!target.startsWith("http://") && !target.startsWith("https://")) {
-            error("Subscription URL must start with http:// or https://")
-        }
-        val conn = (URL(target).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 15000
-            readTimeout = 25000
-            requestMethod = "GET"
-            instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "WhiteGame/7.1")
-        }
-        val code = conn.responseCode
-        if (code !in 200..299) {
-            // Panels answer with a JSON reason ("Warp Not Configured", bad token…); show it.
-            val reason = runCatching {
-                conn.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            }.getOrDefault("")
-            conn.disconnect()
-            val message = runCatching { JSONObject(reason).optString("message") }.getOrNull()
-                .orEmpty().ifBlank { reason.trim().take(120) }
-            error("HTTP " + code + if (message.isNotBlank()) " · " + message else "")
-        }
-        val body = conn.inputStream.bufferedReader().use { it.readText() }
-        conn.disconnect()
-        val nodes = parse(body)
-        if (nodes.isEmpty()) error("No servers found in that subscription")
-        return nodes
-    }
+    fun fetch(from: String = url): List<SubNode> = download(from)
 
     companion object {
         private const val KEY_URL = "sub_url"
 
+        internal fun download(from: String): List<SubNode> {
+            val target = from.trim()
+            if (target.isBlank()) error("Set your subscription URL first")
+            if (!target.startsWith("http://") && !target.startsWith("https://")) {
+                error("Subscription URL must start with http:// or https://")
+            }
+            val conn = (URL(target).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 15000
+                readTimeout = 25000
+                requestMethod = "GET"
+                instanceFollowRedirects = true
+                setRequestProperty("User-Agent", "WhiteGame/7.2")
+                setRequestProperty("Accept", "text/plain, application/json, */*")
+            }
+            val body = try {
+                val code = conn.responseCode
+                if (code !in 200..299) {
+                    val reason = runCatching {
+                        conn.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    }.getOrDefault("")
+                    val message = runCatching { JSONObject(reason).optString("message") }.getOrNull()
+                        .orEmpty().ifBlank { reason.trim().take(120) }
+                    error("HTTP " + code + if (message.isNotBlank()) " / " + message else "")
+                }
+                conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            } finally {
+                conn.disconnect()
+            }
+            val nodes = parse(body)
+            if (nodes.isEmpty()) error("No servers found in that subscription")
+            return nodes
+        }
+
         fun parse(body: String, depth: Int = 0): List<SubNode> {
-            val t = body.trim()
+            val t = body.trim().removePrefix("\uFEFF").trim()
             if (t.isEmpty()) return emptyList()
 
-            if (t.contains("[Interface]", ignoreCase = true)) return fromConfText(t)
-            if (t.startsWith("{") || t.startsWith("[")) return fromSingBox(t)
+            val jsonArray = t.startsWith("[") && t.drop(1).trimStart().startsWith("{")
+            if (t.startsWith("{") || jsonArray) {
+                return runCatching { fromJson(t) }.getOrDefault(emptyList())
+            }
+            // A paste may contain both profiles and share links. Neither branch may swallow
+            // the other, and a malformed link must never become a fake ping-only endpoint.
+            val profiles = fromConfText(t) + fromShareLinks(t) + fromHostPortLines(t)
+            if (profiles.isNotEmpty()) return profiles
 
-            // Before the base64 attempt: a plain share-link list is not base64, and
-            // dropping to fromHostPortLines would throw the links away and leave the
-            // list ping-only.
-            fromShareLinks(t).takeIf { it.isNotEmpty() }?.let { return it }
-
-            // Whole-body base64 is the most common subscription wrapper.
-            if (depth == 0) decodeBase64(t)?.let { return parse(it, depth + 1) }
+            if (depth < 3) decodeBase64(t)?.let { return parse(it, depth + 1) }
             return fromHostPortLines(t)
+        }
+
+        private fun fromJson(text: String): List<SubNode> {
+            if (text.startsWith("[")) {
+                val array = JSONArray(text)
+                return (0 until array.length()).flatMap { i ->
+                    array.optJSONObject(i)?.let { fromJson(it.toString()) }.orEmpty()
+                }
+            }
+            val root = JSONObject(text)
+            val outbounds = root.optJSONArray("outbounds")
+            if (root.has("protocol")) return fromXrayJson(root)?.let(::listOf).orEmpty()
+            val xray = outbounds?.let { array ->
+                (0 until array.length()).mapNotNull { i ->
+                    array.optJSONObject(i)?.takeIf { it.has("protocol") }?.let(::fromXrayJson)
+                }
+            }.orEmpty()
+            return xray + fromSingBox(text)
+        }
+
+        private fun fromXrayJson(config: JSONObject): SubNode? {
+            val parsed = runCatching { XrayConfig.parse(config.toString()) }.getOrNull() ?: return null
+            return node(0, config.optString("tag").ifBlank { parsed.name }, parsed.host,
+                parsed.port, parsed.protocol, config.toString())
         }
 
         /** Plain .conf text: each [Interface] block is a tunnel that can be saved as-is. */
@@ -93,12 +122,13 @@ class ConfigSubscription @Inject constructor(
             val starts = Regex("(?im)^\\s*\\[Interface\\]\\s*$")
                 .findAll(text).map { it.range.first }.toList()
             return starts.mapIndexedNotNull { i, start ->
-                val chunk = text.substring(start, starts.getOrNull(i + 1) ?: text.length).trim()
+                val chunk = text.substring(start, starts.getOrNull(i + 1) ?: text.length)
+                    .lines().takeWhile { !isShareLink(it.trim()) }.joinToString("\n").trim()
                 val endpoint = Regex("(?im)^\\s*Endpoint\\s*=\\s*(.+)$")
                     .find(chunk)?.groupValues?.get(1)?.trim().orEmpty()
                 val host = endpoint.substringBeforeLast(':', "").trim('[', ']')
                 val port = endpoint.substringAfterLast(':', "").toIntOrNull()
-                if (host.isBlank() || port == null) return@mapIndexedNotNull null
+                if (host.isBlank() || port == null || port !in 1..65535) return@mapIndexedNotNull null
                 val name = Regex("(?im)^\\s*#\\s*Name\\s*=\\s*(.+)$")
                     .find(chunk)?.groupValues?.get(1)?.trim() ?: host
                 node(i, name, host, port, "wireguard", chunk)
@@ -114,11 +144,13 @@ class ConfigSubscription @Inject constructor(
                 val root = JSONObject(text)
                 root.optJSONArray("endpoints")?.let { arrays += it }
                 root.optJSONArray("outbounds")?.let { arrays += it }
+                if (root.has("type")) arrays += JSONArray().put(root)
             }
             val out = mutableListOf<SubNode>()
             for (arr in arrays) {
                 for (i in 0 until arr.length()) {
                     val o = arr.optJSONObject(i) ?: continue
+                    if (o.has("protocol")) continue // Xray JSON is handled without losing its config.
                     val peer = o.optJSONArray("peers")?.optJSONObject(0)
                     val host = o.optString("server")
                         .ifBlank { peer?.optString("address").orEmpty() }
@@ -129,9 +161,11 @@ class ConfigSubscription @Inject constructor(
                         (peer?.optInt("port", 0) ?: 0) > 0 -> peer!!.optInt("port")
                         else -> 443
                     }
+                    if (port !in 1..65535) continue
                     val tag = o.optString("tag", "node-" + (i + 1))
                     val type = o.optString("type", "unknown")
-                    out += node(out.size, tag, host, port, type, wireguardConf(o, peer, host, port))
+                    val conf = runCatching { wireguardConf(o, peer, host, port) }.getOrNull() ?: continue
+                    out += node(out.size, tag, host, port, type, conf)
                 }
             }
             return out
@@ -159,11 +193,22 @@ class ConfigSubscription @Inject constructor(
                 appendLine("PrivateKey = " + privateKey)
                 appendLine("Address = " + addresses.joinToString(", "))
                 appendLine("MTU = " + mtu)
+                o.optJSONArray("dns")?.let { dns ->
+                    appendLine("DNS = " + (0 until dns.length()).map { dns.getString(it) }.joinToString(", "))
+                }
+                AwgConfig.AMNEZIA_ORDER.forEach { key ->
+                    val jsonKey = key.lowercase()
+                    if (o.has(jsonKey)) appendLine(key + " = " + o.get(jsonKey).toString())
+                }
                 appendLine()
                 appendLine("[Peer]")
                 appendLine("PublicKey = " + publicKey)
+                val reserved = peer?.optJSONArray("reserved") ?: o.optJSONArray("reserved")
+                reserved?.let { bytes ->
+                    appendLine("Reserved = " + (0 until bytes.length()).map { bytes.getInt(it) }.joinToString(", "))
+                }
                 appendLine("AllowedIPs = " + allowed.joinToString(", "))
-                appendLine("Endpoint = " + host + ":" + port)
+                appendLine("Endpoint = " + (if (host.contains(':')) "[$host]" else host) + ":" + port)
                 appendLine("PersistentKeepalive = " + keepalive)
             }
         }
@@ -172,33 +217,41 @@ class ConfigSubscription @Inject constructor(
          * Xray share links, one per line. The link itself is the config, so these nodes are
          * importable and can be measured through the proxy rather than by a bare TCP connect.
          */
+        private fun isShareLink(raw: String): Boolean =
+            AwgConfig.isShareLink(raw) || XrayConfig.looksLikeXray(raw)
+
         private fun fromShareLinks(text: String): List<SubNode> =
             text.lines().mapIndexedNotNull { i, line ->
                 val raw = line.trim()
-                if (raw.isEmpty() || !XrayConfig.looksLikeXray(raw)) return@mapIndexedNotNull null
-                val p = runCatching { XrayConfig.parse(raw) }.getOrNull()
-                    ?: return@mapIndexedNotNull null
-                node(i, p.name, p.host, p.port, p.protocol, raw)
+                if (AwgConfig.isShareLink(raw)) {
+                    val conf = runCatching { AwgConfig.parseShareLink(raw) }.getOrNull()
+                        ?: return@mapIndexedNotNull null
+                    val endpoint = conf.primaryEndpoint ?: return@mapIndexedNotNull null
+                    val (host, port) = AwgConfig.splitHostPort(endpoint)
+                    node(i, AwgConfig.shareLinkName(raw).orEmpty(), host, port, "wireguard", conf.toConfText())
+                } else {
+                    if (raw.isEmpty() || !XrayConfig.looksLikeXray(raw)) return@mapIndexedNotNull null
+                    val p = runCatching { XrayConfig.parse(raw) }.getOrNull() ?: return@mapIndexedNotNull null
+                    node(i, p.name, p.host, p.port, p.protocol, raw)
+                }
             }
 
-        /** Last resort: a list that only mentions host:port. Ping-only, nothing to connect to. */
+        /** Only complete bare endpoints qualify. Never extract an address from HTML or a bad link. */
         private fun fromHostPortLines(text: String): List<SubNode> {
-            val hostPort = Regex("([A-Za-z0-9.\\-]+\\.[A-Za-z0-9\\-]+|\\d+\\.\\d+\\.\\d+\\.\\d+):(\\d{2,5})")
+            val endpoint = Regex("^([A-Za-z0-9_.-]+|\\[[0-9A-Fa-f:.%]+\\]):([0-9]{1,5})(?:\\s+#(.*))?$")
             return text.lines().mapIndexedNotNull { i, line ->
-                val m = hostPort.find(line) ?: return@mapIndexedNotNull null
-                val port = m.groupValues[2].toIntOrNull() ?: return@mapIndexedNotNull null
-                // Share links (vless://…#Name) carry their label after '#'.
-                val label = runCatching {
-                    java.net.URLDecoder.decode(line.substringAfterLast('#', ""), "UTF-8")
-                }.getOrDefault("").ifBlank { line.trim().take(40) }
-                node(i, label, m.groupValues[1], port, line.substringBefore("://", "raw").trim(), "")
+                val match = endpoint.matchEntire(line.trim()) ?: return@mapIndexedNotNull null
+                val host = match.groupValues[1].trim('[', ']')
+                val port = match.groupValues[2].toIntOrNull()?.takeIf { it in 1..65535 }
+                    ?: return@mapIndexedNotNull null
+                node(i, match.groupValues[3].trim().ifBlank { host }, host, port, "raw", "")
             }
         }
 
         private fun node(i: Int, name: String, host: String, port: Int, type: String, conf: String): SubNode {
             val region = guessRegion(name, host)
             return SubNode(
-                id = host + ":" + port + ":" + i,
+                id = host + ":" + port + ":" + i + ":" + conf.hashCode(),
                 name = name.ifBlank { host },
                 host = host,
                 port = port,
@@ -213,18 +266,14 @@ class ConfigSubscription @Inject constructor(
         @OptIn(ExperimentalEncodingApi::class)
         private fun decodeBase64(text: String): String? {
             val compact = text.filterNot { it.isWhitespace() }
-            if (compact.length < 24 || !compact.matches(Regex("[A-Za-z0-9+/=_-]+"))) return null
+            if (compact.length < 4 || !compact.matches(Regex("[A-Za-z0-9+/=_-]+"))) return null
             // Normalise the URL-safe alphabet: combining URL_SAFE with DEFAULT rejects '+' and
             // '/', which is what nearly every subscription actually uses.
             val standard = compact.replace('-', '+').replace('_', '/').trimEnd('=')
             val decoded = runCatching {
                 String(Base64.decode(standard.padEnd(standard.length + (4 - standard.length % 4) % 4, '=')))
             }.getOrNull() ?: return null
-            val looksReal = decoded.contains("[Interface]", ignoreCase = true) ||
-                decoded.trimStart().startsWith("{") ||
-                decoded.trimStart().startsWith("[") ||
-                decoded.contains("://")
-            return if (looksReal) decoded else null
+            return decoded.takeIf { it.isNotBlank() }
         }
 
         private fun guessRegion(tag: String, host: String): Triple<String, String, String> {

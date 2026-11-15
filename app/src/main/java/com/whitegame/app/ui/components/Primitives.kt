@@ -495,7 +495,9 @@ fun Field(
     mono: Boolean = false,
     error: String? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    trailing: @Composable (() -> Unit)? = null
+    trailing: @Composable (() -> Unit)? = null,
+    visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
+    enabled: Boolean = true
 ) {
     Column(modifier) {
         Legend(legend)
@@ -523,6 +525,8 @@ fun Field(
                     textStyle = (if (mono) Type.mono else Type.body).copy(color = Trace),
                     cursorBrush = SolidColor(Trace),
                     keyboardOptions = keyboardOptions,
+                    visualTransformation = visualTransformation,
+                    enabled = enabled,
                     modifier = Modifier.fillMaxWidth()
                 )
             }

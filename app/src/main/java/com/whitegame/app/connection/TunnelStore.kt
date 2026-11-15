@@ -79,7 +79,10 @@ class TunnelStore @Inject constructor(
     fun save(name: String, confText: String, id: String? = null): SavedTunnel {
         if (XrayConfig.looksLikeXray(confText)) return saveXray(name, confText, id)
         val parsed = AwgConfig.parse(confText)
-        val cleanName = name.trim().ifBlank { defaultName(parsed) }
+        val cleanName = name.trim().ifBlank {
+            if (AwgConfig.isShareLink(confText)) AwgConfig.shareLinkName(confText).orEmpty().ifBlank { defaultName(parsed) }
+            else defaultName(parsed)
+        }
         val normalized = parsed.toConfText()
         // Re-loading a subscription must not pile up copies of the same server.
         if (id == null) {
@@ -134,7 +137,7 @@ class TunnelStore @Inject constructor(
     /** Imports a file or clipboard blob that may hold several configs; returns what was saved. */
     fun importMany(text: String, nameHint: String = ""): List<SavedTunnel> {
         val chunks = splitConfigs(text)
-        if (chunks.isEmpty()) throw ConfigException("No WireGuard [Interface] section or Xray link found")
+        if (chunks.isEmpty()) throw ConfigException("No WireGuard config, wireguard:// link or Xray link found")
         val saved = mutableListOf<SavedTunnel>()
         val errors = mutableListOf<String>()
         chunks.forEachIndexed { i, chunk ->
@@ -169,21 +172,6 @@ class TunnelStore @Inject constructor(
     private fun defaultName(c: AwgConfig): String {
         val host = c.primaryEndpoint?.let { AwgConfig.splitHostPort(it).first } ?: return c.kind.label
         return c.kind.label + " " + host
-    }
-
-    /** Splits a paste into WireGuard blocks (on [Interface]), share-link lines, or one Xray JSON. */
-    private fun splitConfigs(text: String): List<String> {
-        val trimmed = text.trim()
-        if (trimmed.startsWith("{")) return if (XrayConfig.looksLikeXray(trimmed)) listOf(trimmed) else emptyList()
-        val isLink = { line: String -> XrayConfig.looksLikeXray(line.trim()) }
-        val marker = Regex("(?im)^\\s*\\[Interface\\]\\s*$")
-        val starts = marker.findAll(text).map { it.range.first }.toList()
-        val blocks = starts.mapIndexed { i, start ->
-            val end = starts.getOrNull(i + 1) ?: text.length
-            // A WireGuard block ends where a following share link starts.
-            text.substring(start, end).lines().takeWhile { !isLink(it) }.joinToString("\n").trim()
-        }.filter { it.isNotBlank() }
-        return blocks + trimmed.lines().map { it.trim() }.filter(isLink)
     }
 
     private fun readAll(): List<SavedTunnel> {
@@ -229,6 +217,20 @@ class TunnelStore @Inject constructor(
     companion object {
         private const val KEY_LIST = "tunnels"
         private const val KEY_SELECTED = "selected"
+
+        /** Splits a paste into WireGuard blocks, share-link lines, or one Xray JSON. */
+        internal fun splitConfigs(text: String): List<String> {
+            val trimmed = text.trim()
+            if (trimmed.startsWith("{")) return if (XrayConfig.looksLikeXray(trimmed)) listOf(trimmed) else emptyList()
+            val isLink = { line: String -> XrayConfig.looksLikeXray(line.trim()) || AwgConfig.isShareLink(line.trim()) }
+            val marker = Regex("(?im)^\\s*\\[Interface\\]\\s*$")
+            val starts = marker.findAll(text).map { it.range.first }.toList()
+            val blocks = starts.mapIndexed { i, start ->
+                val end = starts.getOrNull(i + 1) ?: text.length
+                text.substring(start, end).lines().takeWhile { !isLink(it) }.joinToString("\n").trim()
+            }.filter { it.isNotBlank() }
+            return blocks + trimmed.lines().map { it.trim() }.filter(isLink)
+        }
 
         /** Starting points shown in the editor. Keys are placeholders the user must replace. */
         fun template(kind: TunnelKind): String = when (kind) {
