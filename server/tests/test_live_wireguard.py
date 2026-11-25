@@ -5,8 +5,10 @@ Example (from the repository root, with wireguard-tools installed):
   sudo --preserve-env=WHITEGAME_PARENT_NETNS unshare -n -- env WHITEGAME_LIVE_WG=1 \
     python3 -m unittest discover -s server/tests -p test_live_wireguard.py -v
 
-WG_TEST_BIN may point to a locally built wg binary. No host interfaces, routes,
-firewalls, system configuration or long-lived services are modified.
+WG_TEST_BIN may point to a locally built wg binary. WG_TEST_KEY_DIR can place
+temporary keys under a directory the package's AppArmor profile permits.
+No host interfaces, routes, firewalls, system configuration or long-lived
+services are modified.
 """
 from __future__ import annotations
 
@@ -46,7 +48,10 @@ class LiveWireGuardTest(unittest.TestCase):
             raise AssertionError("Refusing live test in a namespace containing existing interfaces")
 
     def command(self, *args, input=None):
-        return subprocess.run(args, input=input, text=True, capture_output=True, check=True, timeout=10).stdout.strip()
+        result = subprocess.run(args, input=input, text=True, capture_output=True, timeout=10)
+        if result.returncode:
+            self.fail(f"{args!r} exited with {result.returncode}: {result.stderr.strip() or 'no stderr'}")
+        return result.stdout.strip()
 
     def keypair(self):
         private = self.command(self.wg, "genkey")
@@ -58,12 +63,15 @@ class LiveWireGuardTest(unittest.TestCase):
         interface, client_interface = "wgprovision0", "wgclient0"
         server = worker = provisioner = child = None
         created_links = []
-        with tempfile.TemporaryDirectory(prefix="whitegame-kernel-test-") as temp:
+        with (
+            tempfile.TemporaryDirectory(prefix="whitegame-kernel-test-") as temp,
+            tempfile.TemporaryDirectory(prefix="whitegame-kernel-keys-", dir=os.environ.get("WG_TEST_KEY_DIR")) as keys,
+        ):
             directory = Path(temp)
             server_private, server_public = self.keypair()
             client_private, client_public = self.keypair()
-            server_key = directory / "server.key"
-            client_key = directory / "client.key"
+            server_key = Path(keys) / "server.key"
+            client_key = Path(keys) / "client.key"
             server_key.write_text(server_private + "\n")
             client_key.write_text(client_private + "\n")
             server_key.chmod(0o600)
@@ -72,7 +80,7 @@ class LiveWireGuardTest(unittest.TestCase):
                 self.command("ip", "link", "set", "lo", "up")
                 self.command("ip", "link", "add", "dev", interface, "type", "wireguard")
                 created_links.append(interface)
-                self.command(self.wg, "set", interface, "private-key", str(server_key), "listen-port", "0")
+                self.command(self.wg, "set", interface, "private-key", str(server_key))
                 self.command("ip", "address", "add", "10.80.0.1/24", "dev", interface)
                 self.command("ip", "link", "set", interface, "up")
                 port = self.command(self.wg, "show", interface, "listen-port")

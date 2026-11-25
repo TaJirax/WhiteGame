@@ -22,7 +22,7 @@ function Write-Status($phase, $detail, $counters = @{}) {
     $pending = Join-Path $session ('status-' + [guid]::NewGuid().ToString() + '.tmp')
     [IO.File]::WriteAllText($pending, ($status | ConvertTo-Json -Compress), $encoding)
     try {
-        if ([IO.File]::Exists($statePath)) { [IO.File]::Replace($pending, $statePath, $null) }
+        if ([IO.File]::Exists($statePath)) { [IO.File]::Replace($pending, $statePath, [NullString]::Value) }
         else { [IO.File]::Move($pending, $statePath) }
     } finally {
         if ([IO.File]::Exists($pending)) { [IO.File]::Delete($pending) }

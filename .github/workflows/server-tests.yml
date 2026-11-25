@@ -55,5 +55,7 @@ jobs:
           export WHITEGAME_PARENT_NETNS="$(readlink /proc/self/ns/net)"
           export WHITEGAME_LIVE_WG=1
           export WG_TEST_BIN=/usr/bin/wg
-          sudo --preserve-env=WHITEGAME_PARENT_NETNS,WHITEGAME_LIVE_WG,WG_TEST_BIN \
+          # Ubuntu's wg AppArmor profile only permits key files under /etc/wireguard.
+          export WG_TEST_KEY_DIR=/etc/wireguard
+          sudo --preserve-env=WHITEGAME_PARENT_NETNS,WHITEGAME_LIVE_WG,WG_TEST_BIN,WG_TEST_KEY_DIR \
             unshare --net -- python3 -m unittest discover -s server/tests -p test_live_wireguard.py -v
