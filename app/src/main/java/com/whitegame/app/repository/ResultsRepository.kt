@@ -124,6 +124,9 @@ class ResultsRepository @Inject constructor(
                 put("tcpLoss", n.tcpLoss)
                 put("tcpJitter", n.tcpJitter)
                 put("tlsMs", n.tlsMs)
+                put("isConfigTest", n.isConfigTest)
+                put("downloadMbps", n.downloadMbps)
+                put("uploadMbps", n.uploadMbps)
                 put("udpMs", n.udpMs)
                 put("udpLoss", n.udpLoss)
                 put("udpJitter", n.udpJitter)
@@ -190,6 +193,9 @@ class ResultsRepository @Inject constructor(
                     tcpLoss = intOrNull(d, "tcpLoss"),
                     tcpJitter = longOrNull(d, "tcpJitter"),
                     tlsMs = longOrNull(d, "tlsMs"),
+                    isConfigTest = d.optBoolean("isConfigTest"),
+                    downloadMbps = d.optDouble("downloadMbps").takeIf { it.isFinite() },
+                    uploadMbps = d.optDouble("uploadMbps").takeIf { it.isFinite() },
                     udpMs = longOrNull(d, "udpMs"),
                     udpLoss = intOrNull(d, "udpLoss"),
                     udpJitter = longOrNull(d, "udpJitter"),

@@ -16,7 +16,7 @@ import java.util.concurrent.Executors
 /**
  * Xray measurements for the app, run in the `:xray` process next to [XrayVpnService]:
  *  - a one-shot real delay through one config (the Configs test),
- *  - a long-lived core exposing one local SOCKS5 port per config (live game comparisons).
+ *  - a core exposing local SOCKS5 ports for config speed tests or live game comparisons.
  *
  * Plain Messenger protocol; [XrayBridge] is the only client.
  */
@@ -41,9 +41,9 @@ class XrayTestService : Service() {
                         ))
                         MSG_SOCKS_START -> synchronized(this@XrayTestService) {
                             socksCore?.let { runCatching { it.stopLoop() } }
-                            socksCore = Libv2ray.newCoreController(Quiet).also {
-                                it.startLoop(data.getString(KEY_CONFIG).orEmpty(), 0)
-                            }
+                            val core = Libv2ray.newCoreController(Quiet)
+                            socksCore = core
+                            core.startLoop(data.getString(KEY_CONFIG).orEmpty(), 0)
                         }
                         MSG_SOCKS_STOP -> synchronized(this@XrayTestService) {
                             socksCore?.let { runCatching { it.stopLoop() } }

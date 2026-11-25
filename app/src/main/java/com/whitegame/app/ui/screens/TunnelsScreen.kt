@@ -1,5 +1,6 @@
 package com.whitegame.app.ui.screens
 
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -48,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +62,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.whitegame.app.connection.AwgConfig
 import com.whitegame.app.connection.SavedTunnel
 import com.whitegame.app.connection.TunnelKind
+import com.whitegame.app.connection.tunnelConfigFileName
 import com.whitegame.app.ui.components.Chip
 import com.whitegame.app.ui.components.DataRow
 import com.whitegame.app.ui.components.EmptyState
@@ -98,6 +101,9 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
     var confirmDelete by remember { mutableStateOf<SavedTunnel?>(null) }
     var expandedId by remember { mutableStateOf<String?>(null) }
     var visibleSubscriptionCount by remember(vm.subNodes.size) { mutableStateOf(12) }
+    var exportTarget by remember { mutableStateOf<SavedTunnel?>(null) }
+    var pendingExportId by rememberSaveable { mutableStateOf<String?>(null) }
+    var exportMessage by remember { mutableStateOf("") }
 
     val fileLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -111,6 +117,29 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
             }
             val name = uri.lastPathSegment?.substringAfterLast('/')?.removeSuffix(".conf").orEmpty()
             if (text.isNullOrBlank()) vm.importText("", name) else vm.importText(text, name)
+        }
+    }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        val target = vm.tunnels.firstOrNull { it.id == pendingExportId && !it.isXray }
+        pendingExportId = null
+        if (uri == null) return@rememberLauncherForActivityResult
+        if (target == null) {
+            exportMessage = "The profile is no longer available to export."
+            return@rememberLauncherForActivityResult
+        }
+        scope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                runCatching {
+                    val output = context.contentResolver.openOutputStream(uri, "wt")
+                        ?: return@runCatching false
+                    output.use { it.write(target.confText.toByteArray(Charsets.UTF_8)) }
+                    true
+                }.getOrDefault(false)
+            }
+            exportMessage = if (saved) "Tunnel config saved." else "Could not save the tunnel config."
         }
     }
 
@@ -168,6 +197,10 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
             }
         }
 
+        if (exportMessage.isNotEmpty()) {
+            VSpace(Space.md)
+            Notice(exportMessage, emphasis = true)
+        }
         VSpace(Space.xl)
 
         if (vm.tunnels.isEmpty()) {
@@ -193,6 +226,10 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
                         onToggleDetail = { expandedId = if (expandedId == t.id) null else t.id },
                         onEdit = { editing = EditorTarget.Existing(t) },
                         onDelete = { confirmDelete = t },
+                        onExport = {
+                            exportMessage = ""
+                            exportTarget = t
+                        },
                         onCopyPublicKey = { key ->
                             copyToClipboard(context, "Public key", key)
                         }
@@ -319,6 +356,23 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
         VSpace(Space.xxl)
     }
 
+    exportTarget?.let { target ->
+        TunnelExportDialog(
+            tunnel = target,
+            onSaveFile = {
+                exportTarget = null
+                pendingExportId = target.id
+                try {
+                    exportLauncher.launch(tunnelConfigFileName(target.name))
+                } catch (_: ActivityNotFoundException) {
+                    pendingExportId = null
+                    exportMessage = "Android’s file picker is unavailable."
+                }
+            },
+            onDismiss = { exportTarget = null }
+        )
+    }
+
     confirmDelete?.let { target ->
         AlertDialog(
             onDismissRequest = { confirmDelete = null },
@@ -353,6 +407,7 @@ private fun TunnelRow(
     onToggleDetail: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onExport: () -> Unit,
     onCopyPublicKey: (String) -> Unit
 ) {
     Column {
@@ -448,6 +503,12 @@ private fun TunnelRow(
                                 Icon(Icons.Outlined.ContentCopy, "Copy public key", Modifier.size(16.dp), tint = Trace3)
                             }
                         }
+                    )
+                    Hairline()
+                    SecondaryButton(
+                        "Export config",
+                        onClick = onExport,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = Space.lg, vertical = Space.sm)
                     )
                 }
             }

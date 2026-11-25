@@ -4,7 +4,6 @@ import java.io.InputStream
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
-import android.os.Build
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLPeerUnverifiedException
 import javax.net.ssl.SSLSocket
@@ -57,11 +56,12 @@ object RouteProbe {
                     phase = Failure.TLS
                     (tls.createSocket(raw, host, port, true) as SSLSocket).use { ssl ->
                         ssl.soTimeout = remainingMs()
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        val canIdentifyEndpoint = routeTlsSupportsEndpointIdentification()
+                        if (canIdentifyEndpoint) {
                             ssl.sslParameters = ssl.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }
                         }
                         ssl.startHandshake()
-                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N &&
+                        if (!canIdentifyEndpoint &&
                             !HttpsURLConnection.getDefaultHostnameVerifier().verify(host, ssl.session)) {
                             throw SSLPeerUnverifiedException("TLS hostname verification failed")
                         }

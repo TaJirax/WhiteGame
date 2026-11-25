@@ -309,6 +309,7 @@ class Provisioner:
             row = self.db.execute("SELECT * FROM peers WHERE public_key=?", (key,)).fetchone()
             if row is None:
                 return  # Idempotent; never remove unmanaged peers.
+            self.check_identity()
             with self.db:
                 self.db.execute("UPDATE peers SET state='deleting' WHERE public_key=?", (key,))
             self.driver.remove(key)

@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -30,6 +31,7 @@ import com.whitegame.app.viewmodel.WarpViewModel
 fun WarpSetup(vm: WarpViewModel = hiltViewModel()) {
     var expanded by remember { mutableStateOf(false) }
     var accepted by remember { mutableStateOf(false) }
+    var testAfterSetup by rememberSaveable { mutableStateOf(vm.supportsEndpointTests) }
     val uriHandler = LocalUriHandler.current
     SecondaryButton("WARP setup / endpoint scan", onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth())
     if (!expanded) return
@@ -40,11 +42,16 @@ fun WarpSetup(vm: WarpViewModel = hiltViewModel()) {
         Notice("Keys are generated on this phone. Registration sends your public key to Cloudflare. Availability depends on your network.")
         RowGroup {
             ToggleRow("Accept Cloudflare terms", "Required only to create a WARP profile", accepted, { accepted = it }, enabled = !vm.busy)
+            if (vm.supportsEndpointTests) {
+                ToggleRow("Test endpoints during setup", "Save the fastest reachable Cloudflare endpoint", testAfterSetup,
+                    { testAfterSetup = it }, enabled = !vm.busy)
+            }
         }
         TextButton(onClick = { uriHandler.openUri("https://www.cloudflare.com/application/terms/") }) {
             Text("Read Cloudflare terms", style = Type.small, color = Trace2)
         }
-        SecondaryButton("Create WARP profile", onClick = { vm.create(accepted) }, enabled = accepted && !vm.busy, modifier = Modifier.fillMaxWidth())
+        SecondaryButton(if (vm.registering) "Creating…" else "Create WARP profile", onClick = { vm.create(accepted, testAfterSetup) },
+            enabled = accepted && !vm.busy, modifier = Modifier.fillMaxWidth())
         VSpace(Space.md)
         Field("Endpoints · one host:port per line", vm.endpointsText, vm::updateEndpoints,
             placeholder = "Uses the selected profile's endpoint when empty", mono = true, singleLine = false, modifier = Modifier.fillMaxWidth())
@@ -52,7 +59,7 @@ fun WarpSetup(vm: WarpViewModel = hiltViewModel()) {
         Notice("Select a standard WireGuard profile above and disconnect the active tunnel. Each test completes HTTPS inside its UDP tunnel; the result measures setup time, not gameplay ping. AmneziaWG profiles must be connected to test.")
         VSpace(Space.sm)
         Row(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
-            SecondaryButton(if (vm.busy) "Testing…" else "Scan endpoints", onClick = vm::scan, enabled = !vm.busy, modifier = Modifier.weight(1f))
+            SecondaryButton(if (vm.busy && !vm.registering) "Testing…" else "Scan endpoints", onClick = vm::scan, enabled = !vm.busy, modifier = Modifier.weight(1f))
             SecondaryButton("Use best", onClick = vm::useBest, enabled = !vm.busy && vm.measurements.any { it.ms != null }, modifier = Modifier.weight(1f))
         }
         if (vm.busy && !vm.registering) TextButton(onClick = vm::stop) { Text("Stop", color = Trace2, style = Type.small) }

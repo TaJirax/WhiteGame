@@ -33,8 +33,8 @@ android {
         // phones just say "problem parsing the package".
         minSdk = 23
         targetSdk = 34
-        versionCode = 45
-        versionName = "7.2.0"
+        versionCode = 46
+        versionName = "7.3.0"
         vectorDrawables { useSupportLibrary = true }
         // AGP rejects abiFilters and split filters together, so only one of them applies.
         ndk {
@@ -116,11 +116,14 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.50")
     kapt("com.google.dagger:hilt-compiler:2.50")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.zxing:core:3.5.3")
 
     // AndroidLibXrayLite: Xray-core with its own TUN inbound, run in the :xray process.
     implementation(files("libs/libv2ray.aar"))
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     // The android.jar org.json is a stub in unit tests; config builders need the real one.
     testImplementation("org.json:json:20240303")
 

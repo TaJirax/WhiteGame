@@ -71,6 +71,7 @@ import com.whitegame.app.ui.components.StatusPill
 import com.whitegame.app.ui.components.VSpace
 import com.whitegame.app.ui.theme.Inset
 import com.whitegame.app.ui.theme.Line
+import com.whitegame.app.ui.theme.Panel
 import com.whitegame.app.ui.theme.Shapes
 import com.whitegame.app.ui.theme.Space
 import com.whitegame.app.ui.theme.Trace
@@ -82,7 +83,7 @@ import com.whitegame.app.viewmodel.DnsViewModel
 import com.whitegame.app.viewmodel.GamesViewModel
 import com.whitegame.app.viewmodel.TestViewModel
 
-private val SECTIONS = listOf("DNS", "Configs", "Games")
+private val SECTIONS = listOf("DNS", "Configs", "Games", "Speed")
 
 @Composable
 fun NetworkScreen() {
@@ -108,7 +109,8 @@ fun NetworkScreen() {
             when (s) {
                 0 -> DnsSection()
                 1 -> ConfigsSection()
-                else -> GamesSection()
+                2 -> GamesSection()
+                else -> CloudflareSpeedSection()
             }
         }
     }
@@ -329,7 +331,9 @@ private fun ConfigsSection(vm: TestViewModel = hiltViewModel()) {
     var chooseSaved by remember { mutableStateOf(false) }
     if (chooseSaved) androidx.compose.material3.AlertDialog(
         onDismissRequest = { chooseSaved = false },
-        title = { Text("Load a saved config") },
+        containerColor = Panel,
+        titleContentColor = Trace,
+        title = { Text("Load a saved config", style = Type.title) },
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
                 items(saved, key = { it.id }) { config ->
@@ -340,7 +344,11 @@ private fun ConfigsSection(vm: TestViewModel = hiltViewModel()) {
                 }
             }
         },
-        confirmButton = { androidx.compose.material3.TextButton(onClick = { chooseSaved = false }) { Text("Close") } }
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = { chooseSaved = false }) {
+                Text("Close", color = Trace2, style = Type.button)
+            }
+        }
     )
     LazyColumn(
         Modifier.fillMaxSize().imePadding(),
@@ -357,15 +365,24 @@ private fun ConfigsSection(vm: TestViewModel = hiltViewModel()) {
                 legend = "Config text",
                 value = vm.text,
                 onValueChange = { vm.onTextChange(it) },
-                placeholder = "Paste VLESS / VMess / Trojan / Shadowsocks / Hysteria2 / TUIC links, a JSON outbound, or a WireGuard config",
+                placeholder = "Paste WireGuard configs or links, Xray links, or JSON",
                 singleLine = false,
                 mono = true,
                 minHeight = 150.dp,
+                enabled = !vm.busy,
                 trailing = {
-                    IconAction(Icons.Outlined.ContentCopy, "Paste from clipboard", {
-                        readClipboard(context)?.let { vm.onTextChange(it) }
-                    })
+                    if (!vm.busy) {
+                        IconAction(Icons.Outlined.ContentCopy, "Paste from clipboard", {
+                            readClipboard(context)?.let { vm.onTextChange(it) }
+                        })
+                    }
                 }
+            )
+        }
+        item {
+            Notice(
+                "Disconnect WhiteGame’s active tunnel before testing. Each config can use up to 18 MB " +
+                    "and shares its route’s IP address with Cloudflare."
             )
         }
         item {
@@ -377,13 +394,14 @@ private fun ConfigsSection(vm: TestViewModel = hiltViewModel()) {
                     )
                 } else {
                     PrimaryButton(
-                        "Test configs", onClick = { vm.startTest() }, icon = Icons.Outlined.PlayArrow,
+                        "Test ping & speed", onClick = { vm.startTest() }, icon = Icons.Outlined.PlayArrow,
+                        enabled = vm.text.isNotBlank(),
                         modifier = Modifier.weight(1f), height = 48.dp
                     )
                 }
                 SecondaryButton(
                     "Save", onClick = { vm.saveCurrent() },
-                    enabled = vm.nodes.any { it.reachable != null },
+                    enabled = !vm.busy && vm.nodes.any { it.reachable != null },
                     modifier = Modifier.width(96.dp), height = 48.dp
                 )
             }
@@ -391,12 +409,12 @@ private fun ConfigsSection(vm: TestViewModel = hiltViewModel()) {
         item { ProgressStrip(vm.busy, vm.status) }
         if (vm.saveMessage.isNotBlank()) item { Notice(vm.saveMessage) }
 
-        if (vm.nodes.isEmpty()) {
+        if (vm.nodes.isEmpty() && !vm.busy) {
             item {
                 RowGroup {
                     EmptyState(
                         "Nothing tested yet",
-                        "Paste one or more configs above, then run the path test to see authenticated Xray HTTPS latency, or endpoint reachability for other config types."
+                        "Paste or load a WireGuard or Xray config to measure HTTPS ping and speed through that connection."
                     )
                 }
             }
@@ -412,6 +430,7 @@ private fun ConfigsSection(vm: TestViewModel = hiltViewModel()) {
 
 @Composable
 private fun ProxyCard(n: ProxyNode, onCopy: () -> Unit) {
+    val configTest = n.isConfigTest || n.tlsMs != null
     Column(
         Modifier
             .fillMaxWidth()
@@ -446,21 +465,33 @@ private fun ProxyCard(n: ProxyNode, onCopy: () -> Unit) {
         }
         Spacer(Modifier.height(3.dp))
         Text(n.name, color = Trace2, style = Type.small, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(n.host + ":" + n.port, color = Trace3, style = Type.monoSm)
+        if (n.host.isNotBlank() && n.port > 0) {
+            val endpoint = if (':' in n.host && !n.host.startsWith("[")) "[${n.host}]:${n.port}" else "${n.host}:${n.port}"
+            Text(endpoint, color = Trace3, style = Type.monoSm)
+        }
 
-        if (n.reachable != null) {
+        if (configTest || n.reachable != null) {
             Spacer(Modifier.height(Space.md))
-            ProbeMetrics(n.tcpMs, n.tcpJitter, n.tcpLoss,
-                latencyLabel = if (n.tlsMs != null) "HTTPS delay" else "TCP delay")
-            VSpace(Space.sm)
-            Text("UDP: " + n.udpStatus.ifBlank { "Not tested" }, color = Trace3, style = Type.small)
+            if (configTest) {
+                DataRow("HTTPS ping", formatMetric(n.tlsMs?.toDouble(), "ms"))
+                Hairline()
+                DataRow("Download", formatMetric(n.downloadMbps, "Mbps"))
+                Hairline()
+                DataRow("Upload", formatMetric(n.uploadMbps, "Mbps"))
+                if (n.tcpJitter != null) {
+                    Hairline()
+                    DataRow("Jitter", formatMetric(n.tcpJitter?.toDouble(), "ms"))
+                }
+            } else if (n.tcpLoss != null) {
+                ProbeMetrics(n.tcpMs, n.tcpJitter, n.tcpLoss, latencyLabel = "Endpoint TCP")
+            }
             if (n.serverRegion.isNotBlank()) {
                 Spacer(Modifier.height(Space.md))
                 Text("Server region · " + n.serverFlag + " " + n.serverRegion, color = Trace2, style = Type.small)
             }
             if (n.dropAdvice.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
-                Text(n.dropAdvice, color = Trace3, style = Type.small, maxLines = 3)
+                Text(n.dropAdvice, color = Trace2, style = Type.small)
             }
             if (n.caption.isNotBlank()) {
                 Spacer(Modifier.height(Space.md))

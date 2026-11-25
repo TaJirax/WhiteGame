@@ -113,10 +113,18 @@ object XrayConfig {
      * One local SOCKS5 port per proxy, all in one core, so live comparisons can open real
      * connections through every config at once without starting a core per sample.
      */
-    fun socksConfig(proxies: List<Pair<Int, Parsed>>): String {
+    fun socksConfig(proxies: List<Pair<Int, Parsed>>): String = socksConfig(proxies, speedOnly = false)
+
+    internal fun speedSocksConfig(port: Int, parsed: Parsed): String =
+        socksConfig(listOf(port to parsed), speedOnly = true)
+
+    private fun socksConfig(proxies: List<Pair<Int, Parsed>>, speedOnly: Boolean): String {
         val inbounds = JSONArray()
         val outbounds = JSONArray()
         val rules = JSONArray()
+        // This listener only carries the speed test. All other destinations hit the
+        // default blackhole outbound, including traffic from other local processes.
+        if (speedOnly) outbounds.put(JSONObject().put("protocol", "blackhole").put("tag", "block"))
         proxies.forEachIndexed { i, (port, p) ->
             inbounds.put(JSONObject()
                 .put("tag", "in$i").put("listen", "127.0.0.1").put("port", port)
@@ -126,7 +134,14 @@ object XrayConfig {
             rules.put(JSONObject()
                 .put("type", "field")
                 .put("inboundTag", JSONArray().put("in$i"))
-                .put("outboundTag", "proxy$i"))
+                .put("outboundTag", "proxy$i")
+                .apply {
+                    if (speedOnly) {
+                        put("domain", JSONArray().put("full:speed.cloudflare.com"))
+                        put("network", "tcp")
+                        put("port", 443)
+                    }
+                })
         }
         return JSONObject()
             .put("log", JSONObject().put("loglevel", "none"))
@@ -217,7 +232,8 @@ object XrayConfig {
             "sni" to j.optString("sni"),
             "fp" to j.optString("fp"),
             "alpn" to j.optString("alpn"),
-            "allowInsecure" to j.optString("insecure", j.optString("allowInsecure"))
+            "pcs" to j.optString("pcs").ifBlank { j.optString("pinnedPeerCertSha256") },
+            "vcn" to j.optString("vcn").ifBlank { j.optString("verifyPeerCertByName") }
         )
         if (net == "grpc") {
             q["serviceName"] = j.optString("path")
@@ -246,7 +262,8 @@ object XrayConfig {
         }
         if (method.isBlank() || password.isBlank()) throw ConfigException("Shadowsocks link is missing method or password")
         val l = link("ss://x@" + hostPortQuery, 8388)
-        val q = mutableMapOf<String, String>()
+        val q = l.query.filterKeys { it in setOf("pcs", "vcn", "pinnedPeerCertSha256", "verifyPeerCertByName") }
+            .toMutableMap()
         // v2ray-plugin (what BlueKnight panels emit) is websocket, optionally over TLS.
         val plugin = l.query["plugin"].orEmpty()
         if (plugin.startsWith("v2ray-plugin") || plugin.startsWith("xray-plugin")) {
@@ -280,7 +297,7 @@ object XrayConfig {
             .put("tlsSettings", JSONObject()
                 .put("serverName", l.query["sni"].orEmpty().ifBlank { l.host })
                 .put("alpn", JSONArray().put("h3"))
-                .put("allowInsecure", insecure(l.query)))
+                .withTlsVerification(l.query))
         l.query["obfs-password"]?.takeIf { it.isNotBlank() }?.let { pw ->
             stream.put("finalmask", JSONObject().put("udp", JSONArray().put(JSONObject()
                 .put("type", "salamander")
@@ -292,8 +309,14 @@ object XrayConfig {
 
     private fun server(host: String, port: Int) = JSONObject().put("address", host).put("port", port).put("level", 8)
 
-    private fun insecure(q: Map<String, String>) =
-        listOf("insecure", "allowInsecure", "allow_insecure").any { q[it] == "1" || q[it] == "true" }
+    private fun JSONObject.withTlsVerification(query: Map<String, String>): JSONObject = apply {
+        // Xray removed allowInsecure. With no explicit settings it verifies against trusted CAs.
+        val pin = query["pcs"].orEmpty().ifBlank { query["pinnedPeerCertSha256"].orEmpty() }
+            .ifBlank { query["pinSHA256"].orEmpty() }
+        val name = query["vcn"].orEmpty().ifBlank { query["verifyPeerCertByName"].orEmpty() }
+        if (pin.isNotBlank()) put("pinnedPeerCertSha256", pin)
+        if (name.isNotBlank()) put("verifyPeerCertByName", name)
+    }
 
     /** Transport + TLS/REALITY from the query map shared by vless, vmess, trojan and ss. */
     private fun build(
@@ -352,8 +375,7 @@ object XrayConfig {
                 tls.put("alpn", JSONArray(it.split(',').map { a -> a.trim() }.filter { a -> a.isNotEmpty() }))
             }
             if (security == "tls") {
-                tls.put("allowInsecure", insecure(q))
-                stream.put("security", "tls").put("tlsSettings", tls)
+                stream.put("security", "tls").put("tlsSettings", tls.withTlsVerification(q))
             } else {
                 val pbk = q["pbk"].orEmpty()
                 if (pbk.isBlank()) throw ConfigException("REALITY link is missing its public key (pbk)")
@@ -390,13 +412,19 @@ object XrayConfig {
         val port = first.optInt("port", -1)
         if (host.isBlank() || port !in 1..65535) throw ConfigException("The outbound has no server address and port")
         val stream = outbound.optJSONObject("streamSettings")
-        val clean = JSONObject(outbound.toString()).apply { remove("tag") }
+        outbound.remove("tag")
+        // Older clients may have set this even when they already supplied a pin or a verify name.
+        stream?.optJSONObject("tlsSettings")?.keys()?.let { keys ->
+            while (keys.hasNext()) {
+                if (keys.next().equals("allowInsecure", ignoreCase = true)) keys.remove()
+            }
+        }
         val name = root.optString("remarks").ifBlank { "$protocol $host" }
         return Parsed(
             protocol, name, host, port,
             stream?.optString("network").orEmpty().ifBlank { "tcp" },
             stream?.optString("security").orEmpty().ifBlank { "none" },
-            clean
+            outbound
         )
     }
 }

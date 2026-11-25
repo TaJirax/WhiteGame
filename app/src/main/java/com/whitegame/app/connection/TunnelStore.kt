@@ -219,10 +219,13 @@ class TunnelStore @Inject constructor(
         private const val KEY_SELECTED = "selected"
 
         /** Splits a paste into WireGuard blocks, share-link lines, or one Xray JSON. */
-        internal fun splitConfigs(text: String): List<String> {
+        internal fun splitConfigs(text: String, additionalLink: (String) -> Boolean = { false }): List<String> {
             val trimmed = text.trim()
             if (trimmed.startsWith("{")) return if (XrayConfig.looksLikeXray(trimmed)) listOf(trimmed) else emptyList()
-            val isLink = { line: String -> XrayConfig.looksLikeXray(line.trim()) || AwgConfig.isShareLink(line.trim()) }
+            val isLink = { line: String ->
+                val candidate = line.trim()
+                XrayConfig.looksLikeXray(candidate) || AwgConfig.isShareLink(candidate) || additionalLink(candidate)
+            }
             val marker = Regex("(?im)^\\s*\\[Interface\\]\\s*$")
             val starts = marker.findAll(text).map { it.range.first }.toList()
             val blocks = starts.mapIndexed { i, start ->

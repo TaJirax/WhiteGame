@@ -2,7 +2,7 @@ name: Provisioning server tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'verify/**']
     paths:
       - 'server/**'
       - '.github/workflows/server-tests.yml'

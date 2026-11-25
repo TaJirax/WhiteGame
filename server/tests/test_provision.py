@@ -265,6 +265,20 @@ class HttpTest(ProvisionFixture, unittest.TestCase):
         self.assertEqual([], self.app.rows())
         self.assertEqual([], self.driver.added)
 
+    def test_revocation_leaves_peer_and_journal_intact_when_server_key_changes(self):
+        self.app.enroll({"public_key": key(1)})
+        path = "/v1/peers/" + quote(key(1), safe="")
+        self.driver.identity = key(201)
+
+        self.assertEqual(503, self.call("DELETE", path, token=self.settings.admin_token)[0])
+        self.assertIn(key(1), self.driver.live)
+        self.assertEqual("active", self.app.rows()[0]["state"])
+
+        self.driver.identity = self.app.server_public_key
+        self.assertEqual(200, self.call("DELETE", path, token=self.settings.admin_token)[0])
+        self.assertNotIn(key(1), self.driver.live)
+        self.assertEqual([], self.app.rows())
+
     def test_http_contract_matches_the_android_shared_fixture(self):
         fixture = json.loads((Path(__file__).parent / "fixtures" / "enrollment.json").read_text())
         self.app.server_public_key = fixture["server_public_key"]

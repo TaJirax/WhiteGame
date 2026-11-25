@@ -57,7 +57,10 @@ data class ProxyNode(
     var caption: String = "",
     var gameLabel: String = "",
     var gameAdvice: String = "",
-    var detail: String = ""
+    var detail: String = "",
+    val isConfigTest: Boolean = false,
+    val downloadMbps: Double? = null,
+    val uploadMbps: Double? = null
 )
 
 data class TcpProbeResult(

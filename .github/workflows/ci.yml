@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'verify/**']
     tags: ['v*']
   pull_request:
     branches: [main]
@@ -43,12 +43,68 @@ jobs:
             app/build/reports/tests/
             app/build/reports/lint-results-debug.*
 
+  desktop:
+    name: Windows desktop build and integration
+    runs-on: windows-2022
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: false
+
+      - name: Build and test the Windows package
+        id: package
+        shell: pwsh
+        run: |
+          $manifestFile = Join-Path $env:RUNNER_TEMP 'whitegame-package.json'
+          ./desktop/package.ps1 -PackageManifest $manifestFile
+          $manifest = Get-Content -LiteralPath $manifestFile -Raw | ConvertFrom-Json
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$($manifest.version)") {
+              throw "Tag $env:GITHUB_REF_NAME does not match the Windows version $($manifest.version)."
+          }
+          "archive=$($manifest.archive)" >> $env:GITHUB_OUTPUT
+
+      # These tests mutate networking only inside the disposable Windows runner.
+      - name: Verify Windows VPN and DNS integration
+        shell: pwsh
+        run: |
+          $manifestFile = Join-Path $env:RUNNER_TEMP 'whitegame-package.json'
+          ./desktop/windows-integration.ps1 -PackageManifest $manifestFile
+
+      - name: Upload tested Windows ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: whitegame-windows-x64
+          path: ${{ steps.package.outputs.archive }}
+          if-no-files-found: error
+
+      - name: Upload Windows test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-results
+          path: |
+            desktop/build/reports/tests/
+            desktop/build/test-results/
+          if-no-files-found: ignore
+
   release:
-    name: Signed release
+    name: Publish signed Android and tested Windows builds
     # Tags only. Never runs for a pull request, so a fork cannot reach the
     # signing secrets.
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: test
+    needs: [test, desktop]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -127,11 +183,22 @@ jobs:
             fi
           done
 
-      - name: Publish release
+      - name: Download tested Windows ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: whitegame-windows-x64
+          path: dist/desktop
+
+      - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/*.apk \
+          set -eu
+          version="${GITHUB_REF_NAME#v}"
+          windows="dist/desktop/WhiteGame-Windows-x64-${version}.zip"
+          test -f "$windows"
+          gh release create "$GITHUB_REF_NAME" dist/*.apk "$windows" \
+            --verify-tag \
             --title "WhiteGame ${GITHUB_REF_NAME#v}" \
             --generate-notes
 

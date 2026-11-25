@@ -6,7 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.whitegame.app.connection.AwgConfig
+import com.whitegame.app.connection.ConfigException
 import com.whitegame.app.connection.Keys
+import com.whitegame.app.connection.SavedTunnel
 import com.whitegame.app.connection.TunnelController
 import com.whitegame.app.connection.TunnelStore
 import com.whitegame.app.connection.WarpProvisioning
@@ -17,6 +20,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -43,6 +47,7 @@ class WarpViewModel @Inject constructor(
     private var scannedId: String? = null
     private var scannedConf: String? = null
     private var job: Job? = null
+    val supportsEndpointTests: Boolean get() = XrayBridge.isSupported
 
     fun updateEndpoints(value: String) {
         if (busy) return
@@ -50,7 +55,7 @@ class WarpViewModel @Inject constructor(
         measurements = emptyList()
     }
 
-    fun create(acceptedTerms: Boolean) {
+    fun create(acceptedTerms: Boolean, testAfterSetup: Boolean) {
         if (busy) return
         if (!acceptedTerms) { message = "Accept Cloudflare's terms before registering"; return }
         prefs.getString("tunnel", null)?.let { id -> store.find(id)?.let {
@@ -69,8 +74,21 @@ class WarpViewModel @Inject constructor(
                 endpointsText = profile.endpoints.joinToString("\n")
                 prefs.edit().putString("tunnel", saved.id).putString("endpoints", endpointsText).apply()
                 measurements = emptyList()
-                message = "WARP saved and selected. Scan its endpoints, then connect."
-            } catch (e: CancellationException) { throw e }
+                message = "WARP profile saved and selected."
+                if (testAfterSetup && supportsEndpointTests) {
+                    registering = false
+                    if (tunnel.state.value.isLive) {
+                        message = "WARP profile saved. Disconnect the active tunnel to test its endpoints."
+                    } else {
+                        measureEndpoints(saved, saved.parse(), WireGuardProbe.setupEndpoints(profile.endpoints))
+                        if (measurements.any { it.ms != null }) applyBest(select = false)
+                        else message = "WARP profile saved. None of the tested endpoints completed a WireGuard HTTPS test."
+                    }
+                }
+            } catch (e: CancellationException) {
+                if (!registering) message = "WARP profile saved. Endpoint test stopped."
+                throw e
+            }
             catch (e: Exception) { message = e.message ?: "WARP setup failed. Try another network or import a config." }
             finally { busy = false; registering = false }
         }
@@ -89,24 +107,9 @@ class WarpViewModel @Inject constructor(
         }.getOrElse { message = it.message.orEmpty(); return }
         if (!XrayBridge.isSupported) { message = XrayBridge.UNSUPPORTED; return }
         busy = true
-        measurements = emptyList()
-        scannedId = selected.id
-        scannedConf = selected.confText
         job = viewModelScope.launch {
             try {
-                for ((i, endpoint) in candidates.withIndex()) {
-                    ensureActive()
-                    message = "Testing ${i + 1}/${candidates.size} · $endpoint"
-                    val result = XrayBridge.delay(context, WireGuardProbe.parsed(config, endpoint))
-                    ensureActive()
-                    if (tunnel.state.value.isLive) {
-                        measurements = emptyList()
-                        message = "Tunnel started during the scan. Disconnect it and scan again."
-                        return@launch
-                    }
-                    measurements = (measurements + Measurement(endpoint, result.getOrNull(), result.exceptionOrNull()?.message.orEmpty()))
-                        .sortedBy { it.ms ?: Long.MAX_VALUE }
-                }
+                measureEndpoints(selected, config, candidates)
                 val best = measurements.firstOrNull { it.ms != null }
                 message = if (best == null) "No endpoint completed a WireGuard HTTPS test. Check the keys and UDP path."
                     else "Best: ${best.endpoint} · ${best.ms}ms HTTPS through WireGuard"
@@ -116,15 +119,44 @@ class WarpViewModel @Inject constructor(
         }
     }
 
-    fun useBest() {
+    private suspend fun measureEndpoints(saved: SavedTunnel, config: AwgConfig, candidates: List<String>) {
+        measurements = emptyList()
+        scannedId = saved.id
+        scannedConf = saved.confText
+        for ((index, endpoint) in candidates.withIndex()) {
+            currentCoroutineContext().ensureActive()
+            ensureScanTarget(saved)
+            message = "Testing ${index + 1}/${candidates.size} · $endpoint"
+            val result = XrayBridge.delay(context, WireGuardProbe.parsed(config, endpoint))
+            currentCoroutineContext().ensureActive()
+            ensureScanTarget(saved)
+            measurements = (measurements + Measurement(endpoint, result.getOrNull(), result.exceptionOrNull()?.message.orEmpty()))
+                .sortedBy { it.ms ?: Long.MAX_VALUE }
+        }
+    }
+
+    private fun ensureScanTarget(saved: SavedTunnel) {
+        val problem = when {
+            tunnel.state.value.isLive -> "Tunnel started during the scan. Disconnect it and scan again."
+            store.find(saved.id)?.confText != saved.confText -> "Profile changed. Select a profile and scan again."
+            else -> return
+        }
+        measurements = emptyList()
+        throw ConfigException(problem)
+    }
+
+    fun useBest() = applyBest(select = true)
+
+    private fun applyBest(select: Boolean) {
         val best = measurements.firstOrNull { it.ms != null } ?: return
-        val saved = store.find(scannedId) ?: return
-        if (saved.confText != scannedConf) { message = "Profile changed. Scan again before applying an endpoint."; return }
+        val saved = store.find(scannedId)
+        if (saved == null || saved.confText != scannedConf) { message = "Profile changed. Scan again before applying an endpoint."; return }
         val config = saved.parse()
         val updated = config.copy(peers = listOf(config.peers.single().copy(endpoint = best.endpoint)))
-        store.save(saved.name, updated.toConfText(), saved.id)
-        store.select(saved.id)
-        message = "Saved ${best.endpoint}. Connect the profile to use it."
+        val updatedTunnel = store.save(saved.name, updated.toConfText(), saved.id)
+        scannedConf = updatedTunnel.confText
+        if (select) store.select(saved.id)
+        message = "Saved ${best.endpoint} · ${best.ms} ms. Connect the profile to use it."
     }
 
     fun stop() { job?.cancel(); message = "Stopping after the current tunnel test…" }

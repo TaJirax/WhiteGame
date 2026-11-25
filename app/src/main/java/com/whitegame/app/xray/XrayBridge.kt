@@ -16,11 +16,15 @@ import android.os.Messenger
 import androidx.core.content.ContextCompat
 import com.whitegame.app.connection.TunnelBus
 import com.whitegame.app.connection.TunnelStats
+import com.whitegame.app.network.RouteProbe
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -209,27 +213,74 @@ object XrayBridge {
         } finally { pending.remove(id) }
     }
 
-    /** Real HTTPS round trip through [parsed]. Failure carries the core's reason. */
+    private const val TEST_BUSY = "Another config test or game comparison is using the test engine"
+    private val testGate = Mutex()
     private val delayGate = Mutex()
 
+    /** Real HTTPS round trip through [parsed]. Failure carries the core's reason. */
     suspend fun delay(context: Context, parsed: XrayConfig.Parsed): Result<Long> = delayGate.withLock {
+        if (!testGate.tryLock()) return@withLock Result.failure(IllegalStateException(TEST_BUSY))
         // Native tests run on one executor and cannot be interrupted by coroutine cancellation.
         // Wait for its reply before allowing another caller to enqueue a measurement.
-        val r = withContext(NonCancellable) {
-            call(context, XrayTestService.MSG_DELAY, XrayConfig.delayConfig(parsed), 45_000)
+        val r = try {
+            withContext(NonCancellable) {
+                call(context, XrayTestService.MSG_DELAY, XrayConfig.delayConfig(parsed), 45_000)
+            }
+        } finally {
+            testGate.unlock()
         }
         val error = r.getString(XrayTestService.KEY_ERROR)
         if (error == null && r.getLong(XrayTestService.KEY_MS, -1) >= 0) Result.success(r.getLong(XrayTestService.KEY_MS))
         else Result.failure(IllegalStateException(error ?: "no response"))
     }
 
-    /** Starts one SOCKS5 port per config; returns null on success or the core's error. */
-    suspend fun startSocks(context: Context, proxies: List<Pair<Int, XrayConfig.Parsed>>): String? =
-        call(context, XrayTestService.MSG_SOCKS_START, XrayConfig.socksConfig(proxies), 15_000)
-            .getString(XrayTestService.KEY_ERROR)
+    /** Game comparisons can still measure their other routes if the proxy session fails. */
+    suspend fun <T> withSocks(
+        context: Context,
+        proxies: List<Pair<Int, XrayConfig.Parsed>>,
+        compare: suspend (proxyError: String?) -> T
+    ): T {
+        if (proxies.isEmpty()) return compare(null)
+        return withSocksConfig(context, XrayConfig.socksConfig(proxies), compare)
+    }
 
-    suspend fun stopSocks(context: Context) {
-        if (messenger == null) return
-        call(context, XrayTestService.MSG_SOCKS_STOP, "", 5_000)
+    /** Runs the speed test only while its single outbound is active on the local SOCKS port. */
+    suspend fun <T> withTestSocks(
+        context: Context,
+        parsed: XrayConfig.Parsed,
+        test: suspend (port: Int) -> T
+    ): T {
+        check(isSupported) { "Config testing needs Android 7.0 or newer" }
+        check(parsed.protocol.lowercase() !in setOf("freedom", "blackhole", "dns", "loopback")) {
+            "This config does not contain a proxy outbound"
+        }
+        val port = withContext(Dispatchers.IO) { RouteProbe.freePort() }
+        return withSocksConfig(context, XrayConfig.speedSocksConfig(port, parsed)) { error ->
+            check(error == null) { error.orEmpty() }
+            test(port)
+        }
+    }
+
+    private suspend fun <T> withSocksConfig(
+        context: Context,
+        config: String,
+        run: suspend (proxyError: String?) -> T
+    ): T {
+        if (!testGate.tryLock()) return run(TEST_BUSY)
+        try {
+            val reply = withContext(NonCancellable) {
+                call(context, XrayTestService.MSG_SOCKS_START, config, 15_000)
+            }
+            currentCoroutineContext().ensureActive()
+            return run(reply.getString(XrayTestService.KEY_ERROR))
+        } finally {
+            try {
+                withContext(NonCancellable) {
+                    if (messenger != null) call(context, XrayTestService.MSG_SOCKS_STOP, "", 5_000)
+                }
+            } finally {
+                testGate.unlock()
+            }
+        }
     }
 }

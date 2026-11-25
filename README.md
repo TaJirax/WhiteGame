@@ -6,11 +6,20 @@ installed, and carries traffic over a WireGuard / AmneziaWG or Xray tunnel.
 
 Kotlin, Jetpack Compose, Hilt. `minSdk 23` (Android 6.0), `targetSdk 34`.
 
+The Windows x64 edition shares the profile parsers and network measurements
+with Android. [Windows setup and build guide](desktop/README.md)
+
 ## What it does
 
 - **Measure** — latency, jitter and loss to game endpoints and to a list of
   public DNS resolvers, so a resolver or exit can be chosen on evidence rather
   than by reputation.
+- **Cloudflare Speed Test** — open **Network → Speed** to measure download,
+  upload, latency and jitter over the route available to WhiteGame.
+- **Config tests** — open **Network → Configs**, paste profiles or load a saved
+  one, then test HTTPS ping, download and upload through each Xray or standard
+  WireGuard profile. WireGuard needs a public default route. Disconnect any
+  active WhiteGame tunnel before running these tests.
 - **Detect installed games** — matches packages on the device against a bundled
   catalog (`app/src/main/assets/games*.json`) and enriches them from the Play
   Store listing.
@@ -24,13 +33,17 @@ Kotlin, Jetpack Compose, Hilt. `minSdk 23` (Android 6.0), `targetSdk 34`.
   resolution needs to change.
 - **WARP setup** — in Tunnels, open **WARP setup / endpoint scan**, review
   Cloudflare's terms, and create a profile. Keys are generated on the phone;
-  only the public key is registered. An existing generated profile is reused.
+  only the public key is registered. On Android 7+, setup can test the endpoints
+  returned by registration and save the fastest one that completes a probe.
+  An existing generated profile is reused.
   Registration uses Cloudflare's consumer API and can be unavailable or refused;
   importing a provider config remains available.
 - **Self-hosted setup** — register with your own WireGuard provisioning server
   over HTTPS. The phone keeps its private key; the server allocates an address
   and adds its public key to your WireGuard interface. Linux service, TLS proxy,
   and routing instructions are in [server/README.md](server/README.md).
+- **Config export** — expand a saved WireGuard, AmneziaWG or WARP profile and
+  tap **Export config** to display its QR code or save a `.conf` file.
 - **WireGuard endpoint scans** — select a standard, single-peer full-tunnel
   profile and enter endpoint addresses, one `host:port` per line (IPv6 uses
   `[address]:port`). Tests complete HTTPS through authenticated WireGuard using
@@ -70,17 +83,19 @@ changes and a filtered build can otherwise ship the previous run's ABIs.
 
 ## Releasing
 
-Releases are built by CI, not from a laptop. Tag a commit whose `versionName`
-matches and push it:
+CI builds each release. Push a branch prefixed with `verify/` to run the
+Android build and Windows integration tests before publishing. Once those
+checks pass, tag the commit with the matching Android and Windows version and
+push the tag.
 
 ```bash
-git tag v7.2.0 && git push origin v7.2.0
+git tag v7.3.0 && git push origin v7.3.0
 ```
 
-The workflow runs the tests, builds the universal and per-ABI release APKs,
-verifies each one carries the expected signing certificate, and publishes them
-to a GitHub Release. Signing secrets are described in
-[keystore/README.md](keystore/README.md).
+The workflow runs the Windows VPN and DNS integration tests in a disposable
+runner. It publishes the tested Windows x64 ZIP and the universal and per-ABI
+Android APKs together after verifying the Android signing certificate.
+[Android signing secrets](keystore/README.md)
 
 Release signing material is **not** in this repository — see
 [keystore/README.md](keystore/README.md). Without it the project still compiles
