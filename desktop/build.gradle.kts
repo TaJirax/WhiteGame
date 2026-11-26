@@ -24,7 +24,7 @@ kotlin {
 
 sourceSets.named("main") {
     resources.srcDir("../app/src/main/assets")
-    resources.include("dns.json", "games_online.json", "*.png", "whitegame/*.ps1")
+    resources.include("dns.json", "games_online.json", "*.png", "whitegame/*.ps1", "whitegame/*.sh")
 }
 
 tasks.processResources {

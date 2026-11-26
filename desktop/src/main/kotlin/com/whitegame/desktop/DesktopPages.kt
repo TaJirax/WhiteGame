@@ -65,7 +65,7 @@ internal class DesktopPages(
                         model.phase == DesktopPhase.CONNECTING -> "Connecting…"
                         isLive -> "Disconnect"
                         model.phase == DesktopPhase.DISCONNECTING -> "Disconnecting…"
-                        model.recoveryRequired -> "Restore Windows network"
+                        model.recoveryRequired -> "Restore network settings"
                         else -> "Connect"
                     },
                     primary = !isLive,
@@ -117,7 +117,8 @@ internal class DesktopPages(
                 ui.table(session),
                 ui.spacer(DesktopSpace.sm),
                 ui.section("Connection options"),
-                ui.box(ui.column(
+                if (DesktopPlatform.linux) ui.notice("WireGuard and AmneziaWG use the installed Linux tunnel tools.")
+                else ui.box(ui.column(
                     ui.toggle("Auto-reconnect", model.autoReconnect) { dispatch(DesktopAction.AutoReconnect(it)) },
                     ui.hairline(),
                     ui.toggle("Kill switch", model.killSwitch, enabled = !isLive && idle) { dispatch(DesktopAction.KillSwitch(it)) }
@@ -239,33 +240,7 @@ internal class DesktopPages(
         return ui.column(bar, content, gap = DesktopSpace.md)
     }
 
-    private fun dns(): JComponent {
-        val dnsOverride = model.preferredDns
-        val actions = ui.column(
-            ui.section("DNS resolvers", "Measure latency, jitter, and failed DNS queries"),
-            ui.box(ui.column(
-                ui.dataRow("DNS override", dnsOverride ?: "System DNS"),
-                ui.button("Restore system DNS", enabled = idle && dnsOverride != null) { dispatch(DesktopAction.ApplyDns(null)) }
-            )),
-            editArea("Additional resolver IPs", "dns-draft", drafts.resolvers, rows = 3) { drafts.resolvers = it },
-            ui.grid(
-                ui.button("Test DNS resolvers", primary = true, enabled = idle) { dispatch(DesktopAction.TestDns(drafts.resolvers)) },
-                saveButton(DesktopReportKind.DNS, model.dns.isNotEmpty())
-            )
-        )
-        val results = if (model.dns.isEmpty()) ui.notice("Run the resolver test to compare DNS response times.")
-        else ui.column(
-            ui.section("Resolver results", "${model.dns.size} measured"),
-            *model.dns.map { row ->
-                val ip = row.endpoint.ifBlank { row.name }
-                measurement(row, latencyLabel = "DNS latency", extra = ui.button(
-                    if (ip == dnsOverride) "Applied" else "Use DNS",
-                    enabled = idle && row.latencyMs != null && ip != dnsOverride
-                ) { dispatch(DesktopAction.ApplyDns(ip)) })
-            }.toTypedArray()
-        )
-        return twoColumns(actions, results)
-    }
+    private fun dns(): JComponent = desktopDnsPage(ui, model, drafts, dialogs, dispatch)
 
     private fun configs(): JComponent {
         val left = ui.column(

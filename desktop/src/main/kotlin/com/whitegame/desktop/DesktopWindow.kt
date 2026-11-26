@@ -32,7 +32,9 @@ internal enum class DesktopNetworkTab(val label: String) {
 
 internal class DesktopDrafts {
     var configs = ""
-    var resolvers = ""
+    var dnsSearch = ""
+    var extraResolverIps = ""
+    var dnsResolverId: String? = null
     var endpoints = ""
     var subscription: String? = null
     var catalog: String? = null
@@ -202,7 +204,7 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
                 state.profiles, state.selectedId, state.endpointTests, state.subscription, state.subscriptionUrl
             )
             DesktopPage.NETWORK -> listOf(networkTab) + when (networkTab) {
-                DesktopNetworkTab.DNS -> listOf(state.dns, state.preferredDns)
+                DesktopNetworkTab.DNS -> listOf(state.resolvers, state.dns, state.preferredDns)
                 DesktopNetworkTab.CONFIGS -> listOf(state.configTests, state.profiles)
                 DesktopNetworkTab.GAMES -> listOf(state.games, state.gameTests, state.catalogUrl)
                 DesktopNetworkTab.SPEED -> listOf(state.speed)

@@ -7,7 +7,12 @@ internal fun interface DesktopActions {
 internal sealed interface DesktopAction {
     data class Theme(val dark: Boolean) : DesktopAction
     data class SelectProfile(val id: String) : DesktopAction
-    data class SaveProfile(val name: String, val config: String, val id: String? = null) : DesktopAction
+    data class SaveProfile @JvmOverloads constructor(
+        val name: String,
+        val config: String,
+        val id: String? = null,
+        val complete: ((String?) -> Unit)? = null
+    ) : DesktopAction
     data class ImportProfiles(val config: String, val name: String = "") : DesktopAction
     data class DeleteProfile(val id: String) : DesktopAction
     data object Connect : DesktopAction
@@ -17,7 +22,9 @@ internal sealed interface DesktopAction {
     data object AnalyzeNetwork : DesktopAction
     data object SpeedTest : DesktopAction
     data class TestConfigs(val config: String) : DesktopAction
-    data class TestDns(val extraResolvers: String = "") : DesktopAction
+    data class TestDns(val extraResolvers: String = "", val resolverId: String? = null) : DesktopAction
+    data class SaveDnsResolver(val name: String, val address: String, val id: String? = null) : DesktopAction
+    data class DeleteDnsResolver(val id: String) : DesktopAction
     data class ApplyDns(val address: String?) : DesktopAction
     data object DiscoverGames : DesktopAction
     data class TestGame(val id: String) : DesktopAction
@@ -114,6 +121,7 @@ internal data class DesktopState(
     val preferredDns: String? = null,
     val optimizer: DesktopMeasurement? = null,
     val suggestedDns: DesktopMeasurement? = null,
+    val resolvers: List<DesktopDnsResolver> = emptyList(),
     val dns: List<DesktopMeasurement> = emptyList(),
     val configTests: List<DesktopMeasurement> = emptyList(),
     val games: List<DesktopGame> = emptyList(),

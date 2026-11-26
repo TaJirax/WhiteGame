@@ -1,11 +1,16 @@
-# WhiteGame for Windows
+# WhiteGame desktop
 
 WhiteGame for Windows targets x64 editions of Windows 10 and 11. Extract
 `WhiteGame-Windows-x64-7.3.0.zip` and open `WhiteGame.exe` from the extracted
 folder. The package includes Java, Xray 26.11.9, and Wintun. Keep the folders
 alongside the executable. [Xray release](https://github.com/XTLS/Xray-core/releases/tag/v26.11.9)
 
-## Tunnel engines
+On x86-64 Linux, extract `WhiteGame-Linux-x64-7.3.0.tar.gz` and run
+`WhiteGame/bin/WhiteGame`. The archive includes Java and the Linux Xray binary.
+Settings and profiles are saved under `$XDG_DATA_HOME/whitegame`, with
+`~/.local/share/whitegame` as the default.
+
+## Windows tunnel engines
 
 | Profile | Engine |
 | --- | --- |
@@ -22,13 +27,30 @@ Windows asks for administrator approval when WhiteGame starts a tunnel or
 applies system DNS. The main window runs with normal user permissions. Profiles
 and reports are saved under `%LOCALAPPDATA%\WhiteGame`.
 
+## Linux networking
+
+- Cloudflare speed tests, DNS scans, game measurements, and isolated Xray,
+  WireGuard, and WARP profile tests use the same measurement code as Windows.
+- Connect standard WireGuard with `wg-quick`. AmneziaWG requires
+  `awg-quick` and its kernel or userspace tunnel engine. A tunnel profile that
+  sets DNS also needs the `resolvconf` integration used by the installed tool.
+  [WireGuard configuration reference](https://git.zx2c4.com/wireguard-tools/about/src/man/wg-quick.8)
+- **Use DNS** temporarily changes the default-route adapter through
+  `systemd-resolved`. **Restore system DNS** or closing WhiteGame restores
+  the previous values if another program has left the override in place.
+  Linux network changes require a PolicyKit authentication agent for desktop
+  approval. [resolvectl documentation](https://www.freedesktop.org/software/systemd/man/latest/resolvectl.html)
+- Device-wide Xray, WARP profiles with Reserved bytes, and WhiteGame's
+  dedicated kill-switch control are available on Windows. Linux can import
+  and test Xray and WARP profiles in **Network → Configs**.
+
 ## Using the app
 
 - **Connect** selects a saved profile, starts or stops the tunnel, and shows its
   status and available session statistics. Windows supports device-wide
   tunneling and IP-based WireGuard split routes. Android package-based routing
   rules are Android-only.
-- **Tunnels** imports config files or pasted links, manages subscriptions,
+- **Tunnels** imports config files or pasted links and edits saved profile values, manages subscriptions,
   exports WireGuard-format profiles as files or QR codes, and offers WARP and
   self-hosted enrollment. WireGuard endpoint scans use the selected profile and
   the endpoints you enter. [Self-hosted WireGuard API](../server/README.md)
@@ -37,12 +59,13 @@ and reports are saved under `%LOCALAPPDATA%\WhiteGame`.
   WhiteGame tunnel first. WireGuard needs an internet route in `AllowedIPs`.
   For AmneziaWG, connect a profile with an internet route and measure it from
   **Network → Speed**.
-- **Network → DNS** compares resolver latency, jitter, and failed queries, and
-  can apply or restore a resolver. **Network → Games** matches the catalog
-  against Steam and Epic installations and installed app records. Its route
+- **Network → DNS** searches the bundled provider catalog, scans all or one
+  resolver, manages custom addresses, and can apply or restore a resolver.
+  **Network → Games** matches the catalog against installed Steam titles and,
+  on Windows, Epic installations and installed app records. Its route
   comparisons measure publisher HTTPS endpoints. **Network → Speed** measures
   the current connection using Cloudflare. [Cloudflare Speed Test](https://speed.cloudflare.com/)
-- **Device** also shows Windows and network-adapter information and opens saved
+- **Device** also shows system and network-adapter information and opens saved
   measurement reports.
 
 ## Build from source
@@ -54,7 +77,9 @@ On x64 Windows with JDK 17, run these commands from the repository root.
 .\desktop\package.ps1
 ```
 
-The packaging script checks the Xray archive's SHA-256 digest and writes the
+On x86-64 Linux with JDK 17, run `bash desktop/package-linux.sh` from the root.
+
+The packaging scripts check the Xray archive's SHA-256 digest and write the
 portable ZIP to `dist\WhiteGame-Windows-x64-7.3.0.zip`. The release workflow
-publishes the ZIP after running VPN and DNS tests on a disposable Windows
-runner.
+also builds `dist/WhiteGame-Linux-x64-7.3.0.tar.gz` and publishes both
+packages after the Linux build and the disposable Windows VPN and DNS tests pass.

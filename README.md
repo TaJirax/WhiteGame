@@ -6,8 +6,8 @@ installed, and carries traffic over a WireGuard / AmneziaWG or Xray tunnel.
 
 Kotlin, Jetpack Compose, Hilt. `minSdk 23` (Android 6.0), `targetSdk 34`.
 
-The Windows x64 edition shares the profile parsers and network measurements
-with Android. [Windows setup and build guide](desktop/README.md)
+The Windows and Linux x64 editions share the profile parsers and network
+measurements with Android. [Desktop setup and build guide](desktop/README.md)
 
 ## What it does
 

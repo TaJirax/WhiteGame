@@ -26,7 +26,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.InetAddress
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -38,7 +37,7 @@ internal class DesktopController(
     private val releaseInstance: () -> Unit
 ) : DesktopActions {
     private val scope = CoroutineScope(SupervisorJob() + SwingDispatcher)
-    private val tunnels = WindowsTunnels(store.directory.resolve("network"))
+    private val tunnels = DesktopPlatform.network(store.directory.resolve("network"))
     private val window = DesktopWindow(this)
     private var operation: Job? = null
     private var applyingNetwork = false
@@ -47,12 +46,14 @@ internal class DesktopController(
     private var endpointProfile: DesktopProfile? = null
     private var catalog = emptyList<WindowsGame>()
     private var installed = emptySet<String>()
+    private val bundledResolvers = desktopDnsCatalog(WindowsCatalog.resolvers())
     private var state = DesktopState(
         dark = store.flag("dark", true),
         profiles = store.profiles,
         autoReconnect = store.flag("autoReconnect", true),
         killSwitch = store.flag("killSwitch", false),
         preferredDns = store.string("preferredDns").ifBlank { null },
+        resolvers = bundledResolvers + store.dnsResolvers,
         subscriptionUrl = store.string("subscriptionUrl"),
         catalogUrl = store.string("catalogUrl"),
         reports = store.reports
@@ -80,10 +81,13 @@ internal class DesktopController(
             SwingUtilities.invokeLater { dispatch(action) }
             return
         }
-        if (closing) return
+        if (closing) {
+            if (action is DesktopAction.SaveProfile) action.complete?.invoke("WhiteGame is closing.")
+            return
+        }
         when (action) {
             DesktopAction.Stop -> {
-                if (applyingNetwork) notice("Waiting for Windows to finish the network change.")
+                if (applyingNetwork) notice("Waiting for the system to finish the network change.")
                 else operation?.cancel()
                 return
             }
@@ -93,7 +97,10 @@ internal class DesktopController(
             }
             else -> Unit
         }
-        if (operation?.isActive == true) return
+        if (operation?.isActive == true) {
+            if (action is DesktopAction.SaveProfile) action.complete?.invoke("Wait for the current operation to finish.")
+            return
+        }
         try {
             when (action) {
                 is DesktopAction.Theme -> preference("dark", action.dark) { copy(dark = action.dark) }
@@ -104,14 +111,21 @@ internal class DesktopController(
                         endpointProfile = null
                     }
                 }
-                is DesktopAction.SaveProfile -> saveProfile(action.config, action.name, action.id)
+                is DesktopAction.SaveProfile -> {
+                    if (action.id != null) {
+                        require(state.profiles.any { it.id == action.id }) { "This saved profile no longer exists." }
+                        require(action.id != state.activeId || !state.phase.isLive) { "Disconnect this profile before editing it." }
+                    }
+                    saveProfile(action.config, action.name, action.id)
+                    action.complete?.invoke(null)
+                }
                 is DesktopAction.ImportProfiles -> importProfiles(desktopConfigInputs(action.config), action.name)
                 is DesktopAction.DeleteProfile -> deleteProfile(action.id)
                 DesktopAction.Connect -> {
                     val profile = selected() ?: return notice("Choose a saved tunnel.")
-                    run("Connecting Windows tunnel…", networkChange = true) { connect(profile) }
+                    run("Connecting tunnel…", networkChange = true) { connect(profile) }
                 }
-                DesktopAction.Disconnect -> run("Disconnecting Windows tunnel…", networkChange = true) {
+                DesktopAction.Disconnect -> run("Disconnecting tunnel…", networkChange = true) {
                     update { copy(phase = DesktopPhase.DISCONNECTING, connectionMessage = "Disconnecting…") }
                     try {
                         withContext(Dispatchers.IO) { tunnels.disconnect() }
@@ -124,11 +138,13 @@ internal class DesktopController(
                     preference("killSwitch", action.enabled) { copy(killSwitch = action.enabled) }
                     if (state.phase.isLive) notice("Kill switch setting applies on the next connection.")
                 }
-                DesktopAction.AnalyzeNetwork -> run("Analyzing the Windows network…") { analyzeNetwork() }
+                DesktopAction.AnalyzeNetwork -> run("Analyzing the network…") { analyzeNetwork() }
                 DesktopAction.SpeedTest -> run("Measuring Cloudflare speed…") { speedTest() }
                 is DesktopAction.TestConfigs -> run("Preparing config tests…") { testConfigs(action.config) }
-                is DesktopAction.TestDns -> run("Measuring DNS…") { testDns(action.extraResolvers) }
-                is DesktopAction.ApplyDns -> run("Applying Windows DNS…", networkChange = true) { applyDns(action.address) }
+                is DesktopAction.TestDns -> run("Measuring DNS…") { testDns(action) }
+                is DesktopAction.SaveDnsResolver -> saveDnsResolver(action)
+                is DesktopAction.DeleteDnsResolver -> deleteDnsResolver(action.id)
+                is DesktopAction.ApplyDns -> run("Applying system DNS…", networkChange = true) { applyDns(action.address) }
                 DesktopAction.DiscoverGames -> run("Finding installed games…") { discoverGames() }
                 is DesktopAction.TestGame -> run("Measuring game HTTPS…") { testGame(action.id, false) }
                 is DesktopAction.CompareGame -> run("Measuring game routes…") { testGame(action.id, true) }
@@ -177,7 +193,9 @@ internal class DesktopController(
                 DesktopAction.Stop, DesktopAction.Close -> Unit
             }
         } catch (e: Exception) {
-            notice(e.message ?: "The action could not be completed.")
+            val message = e.message ?: "The action could not be completed."
+            if (action is DesktopAction.SaveProfile && action.complete != null) action.complete.invoke(message)
+            else notice(message)
         }
     }
 
@@ -205,7 +223,7 @@ internal class DesktopController(
             val pending = operation
             if (!applyingNetwork) pending?.cancel()
             pending?.join()
-            progress("Restoring Windows network settings…")
+            progress("Restoring network settings…")
             try {
                 withContext(NonCancellable + Dispatchers.IO) { tunnels.close() }
                 window.dispose()
@@ -213,14 +231,14 @@ internal class DesktopController(
                 scope.cancel()
             } catch (e: Exception) {
                 closing = false
-                update { copy(busy = null, notice = e.message ?: "Could not restore Windows settings.") }
+                update { copy(busy = null, notice = e.message ?: "Could not restore network settings.") }
             }
         }
     }
 
     private suspend fun connect(profile: DesktopProfile) {
         val previousId = state.activeId
-        update { copy(phase = DesktopPhase.CONNECTING, activeId = profile.id, connectionMessage = "Waiting for Windows…") }
+        update { copy(phase = DesktopPhase.CONNECTING, activeId = profile.id, connectionMessage = "Waiting for the system…") }
         try {
             val dns = state.preferredDns?.let(::listOf).orEmpty()
             val killSwitch = state.killSwitch
@@ -310,32 +328,70 @@ internal class DesktopController(
         }
     }
 
-    private suspend fun testDns(extra: String) {
-        val custom = extra.split(Regex("[,\\s]+")).filter(String::isNotBlank).distinct()
-        val extraResolvers = custom.mapIndexed { index, ip ->
-            require(isIp(ip)) { "Enter resolver IP addresses separated by spaces or commas." }
-            DnsItem(-index - 1, ip, "Custom", "")
+    private suspend fun testDns(action: DesktopAction.TestDns) {
+        val extra = action.extraResolvers.split(Regex("[,\\s]+")).filter(String::isNotBlank).mapIndexed { index, ip ->
+            require(normalizedDnsAddress(ip) != null) { "Enter numeric IPv4 or IPv6 resolver addresses separated by spaces or commas." }
+            DesktopDnsResolver("extra-$index", "Extra resolver", ip)
         }
-        updateDns(measureResolvers(WindowsCatalog.resolvers() + extraResolvers))
+        val selected = if (action.resolverId == null) state.resolvers + extra
+            else state.resolvers.filter { it.id == action.resolverId }
+        require(selected.isNotEmpty()) { "Choose a DNS resolver to test." }
+        updateDns(measureResolvers(selected.dnsTargets()), merge = action.resolverId != null)
     }
 
     private suspend fun analyzeNetwork() {
         update { copy(optimizer = null, suggestedDns = null) }
         val route = samplePath()
         update { copy(optimizer = route) }
-        updateDns(measureResolvers(DnsData.scanCandidates(WindowsCatalog.resolvers())))
+        updateDns(measureResolvers(DnsData.scanCandidates(state.resolvers.dnsTargets())), merge = true)
     }
 
     private suspend fun measureResolvers(resolvers: List<DnsItem>): List<DnsItem> =
         DesktopProbes.dns(resolvers) { tested, total -> progress("Measuring resolvers · $tested/$total") }
 
-    private fun updateDns(results: List<DnsItem>) {
+    private fun updateDns(results: List<DnsItem>, merge: Boolean) {
         val rows = results.map { resolver ->
             DesktopMeasurement(resolver.ip, resolver.provider, resolver.ip, "DNS",
                 resolver.pingMs?.toDouble(), resolver.jitterMs?.toDouble(), resolver.lossPct?.toDouble(),
                 detail = resolver.notes, status = resolver.status)
         }
-        update { copy(dns = rows, suggestedDns = rows.firstOrNull { it.latencyMs != null }) }
+        update {
+            val current = if (merge) {
+                val changed = rows.map(DesktopMeasurement::id).toSet()
+                (rows + dns.filterNot { (normalizedDnsAddress(it.endpoint) ?: it.id) in changed })
+                    .sortedBy { DnsData.distanceScore(it.latencyMs?.toLong(), it.lossPercent?.toInt(), it.jitterMs?.toLong()) }
+            } else rows
+            copy(dns = current, suggestedDns = current.firstOrNull { it.latencyMs != null })
+        }
+    }
+
+    private fun saveDnsResolver(action: DesktopAction.SaveDnsResolver) {
+        val previous = state.resolvers.filter(DesktopDnsResolver::custom)
+        if (action.id != null) require(previous.any { it.id == action.id }) { "Choose a custom resolver to edit." }
+        val resolver = if (action.id == null) customDnsResolver(action.name, action.address)
+            else customDnsResolver(action.name, action.address, action.id)
+        require(previous.none { it.id != resolver.id && it.addressKey == resolver.addressKey }) {
+            "A custom resolver with this address already exists."
+        }
+        val next = if (action.id == null) previous + resolver
+            else previous.map { if (it.id == resolver.id) resolver else it }
+        setCustomResolvers(next)
+        notice("Saved ${resolver.name}.")
+    }
+
+    private fun deleteDnsResolver(id: String) {
+        setCustomResolvers(state.resolvers.filter { it.custom && it.id != id })
+        notice("Custom resolver removed.")
+    }
+
+    private fun setCustomResolvers(custom: List<DesktopDnsResolver>) {
+        store.saveDnsResolvers(custom)
+        val next = bundledResolvers + custom
+        val addresses = next.map(DesktopDnsResolver::addressKey).toSet()
+        update {
+            val retained = dns.filter { (normalizedDnsAddress(it.endpoint) ?: it.id) in addresses }
+            copy(resolvers = next, dns = retained, suggestedDns = retained.firstOrNull { it.latencyMs != null })
+        }
     }
 
     private suspend fun samplePath(): DesktopMeasurement {
@@ -356,17 +412,17 @@ internal class DesktopController(
     }
 
     private suspend fun applyDns(address: String?) {
-        require(address == null || isIp(address)) { "Select a valid resolver IP." }
+        val resolver = address?.let { requireNotNull(normalizedDnsAddress(it)) { "Select a valid resolver IP." } }
         val active = state.profiles.firstOrNull { it.id == state.activeId }
         if (active != null && state.phase.isLive) {
             withContext(Dispatchers.IO) { tunnels.restoreDns() }
-            preference("preferredDns", address) { copy(preferredDns = address) }
+            preference("preferredDns", resolver) { copy(preferredDns = resolver) }
             connect(active)
         } else {
             withContext(Dispatchers.IO) {
-                if (address == null) tunnels.restoreDns() else tunnels.applyDns(listOf(address))
+                if (resolver == null) tunnels.restoreDns() else tunnels.applyDns(listOf(resolver))
             }
-            preference("preferredDns", address) { copy(preferredDns = address) }
+            preference("preferredDns", resolver) { copy(preferredDns = resolver) }
         }
         notice(if (address == null) "Restored the default DNS settings." else "Using DNS $address.")
     }
@@ -475,7 +531,7 @@ internal class DesktopController(
 
     private suspend fun inspect(samplePath: Boolean) {
         val device = withContext(Dispatchers.IO) { WindowsCatalog.device() }
-        val engines = listOf("WireGuard" to WindowsEngines::wireGuard, "AmneziaWG" to WindowsEngines::amnezia, "Xray" to WindowsEngines::xray)
+        val engines = listOf("WireGuard" to DesktopEngines::wireGuard, "AmneziaWG" to DesktopEngines::amnezia, "Xray" to DesktopEngines::xray)
             .map { (name, resolve) -> DesktopField(name, runCatching { resolve().toString() }.getOrElse { it.message ?: "Unavailable" }) }
         update { copy(device = device, engines = engines, engineSummary = "WireGuard | AmneziaWG | Xray") }
         if (samplePath) {
@@ -492,7 +548,8 @@ internal class DesktopController(
 
     private fun saveProfile(config: String, name: String, id: String? = null): DesktopProfile {
         val parsed = desktopProfile(config, name, id ?: UUID.randomUUID().toString())
-        val profile = if (id == null) state.profiles.firstOrNull { it.config == parsed.config } ?: parsed else parsed
+        val identity = parsed.configurationIdentity()
+        val profile = if (id == null) state.profiles.firstOrNull { it.configurationIdentity() == identity } ?: parsed else parsed
         val next = if (state.profiles.none { it.id == profile.id }) state.profiles + profile
             else state.profiles.map { if (it.id == profile.id) profile else it }
         store.saveProfiles(next, profile.id)
@@ -504,10 +561,12 @@ internal class DesktopController(
         var next = state.profiles
         var selected = state.selectedId
         var accepted = 0
+        val byConfig = linkedMapOf<String, DesktopProfile>()
+        next.forEach { byConfig.putIfAbsent(it.configurationIdentity(), it) }
         configs.forEachIndexed { index, text ->
             val title = names.getOrNull(index) ?: name.takeIf { configs.size == 1 }.orEmpty()
             val profile = runCatching { desktopProfile(text, title) }.getOrNull() ?: return@forEachIndexed
-            val existing = next.firstOrNull { it.config == profile.config }
+            val existing = byConfig.putIfAbsent(profile.configurationIdentity(), profile)
             if (existing == null) next = next + profile
             selected = existing?.id ?: profile.id
             accepted++
@@ -557,15 +616,6 @@ internal class DesktopController(
         require(!state.phase.isLive && !state.recoveryRequired) {
             "Disconnect or restore the active WhiteGame tunnel before testing profiles."
         }
-    }
-
-    private fun isIp(address: String): Boolean {
-        if (':' in address) {
-            return address.matches(Regex("[0-9a-fA-F:.]+")) &&
-                runCatching { InetAddress.getByName(address) }.isSuccess
-        }
-        val octets = address.split('.')
-        return octets.size == 4 && octets.all { it.matches(Regex("[0-9]{1,3}")) && it.toInt() in 0..255 }
     }
 
     private fun formatBytes(value: Long): String = when {

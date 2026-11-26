@@ -55,12 +55,18 @@ internal object WindowsCatalog {
     }
 
     fun installedGames(): Set<String> {
-        val inventory = installedInventory()
+        val inventory = if (DesktopPlatform.linux) JSONObject() else installedInventory()
         val names = inventory.objects("apps").map { it.optString("DisplayName") }.toMutableList()
         val steam = buildList {
             inventory.optString("steam").takeIf(String::isNotBlank)?.let { add(Path.of(it)) }
             System.getenv("ProgramFiles(x86)")?.let { add(Path.of(it, "Steam")) }
             System.getenv("ProgramFiles")?.let { add(Path.of(it, "Steam")) }
+            if (DesktopPlatform.linux) {
+                val home = Path.of(System.getProperty("user.home"))
+                add(home.resolve(".local/share/Steam"))
+                add(home.resolve(".steam/steam"))
+                add(home.resolve(".var/app/com.valvesoftware.Steam/.local/share/Steam"))
+            }
         }
         val steamPaths = steam.flatMap { directory ->
             val index = directory.resolve("steamapps/libraryfolders.vdf")

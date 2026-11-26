@@ -29,6 +29,13 @@ internal class DesktopStore(val directory: Path) {
             )
         }
 
+    val dnsResolvers: List<DesktopDnsResolver>
+        get() = data.objects("dnsResolvers").mapNotNull {
+            runCatching {
+                customDnsResolver(it.getString("name"), it.getString("address"), it.getString("id"))
+            }.getOrNull()
+        }
+
     fun string(key: String): String = data.optString(key)
 
     fun flag(key: String, fallback: Boolean): Boolean = data.optBoolean(key, fallback)
@@ -64,6 +71,12 @@ internal class DesktopStore(val directory: Path) {
         }))
     }
 
+    fun saveDnsResolvers(resolvers: List<DesktopDnsResolver>) {
+        put("dnsResolvers" to JSONArray(resolvers.map {
+            JSONObject().put("id", it.id).put("name", it.name).put("address", it.address)
+        }))
+    }
+
     private fun writeMeasurement(row: DesktopMeasurement): JSONObject = JSONObject()
         .put("id", row.id).put("name", row.name).put("endpoint", row.endpoint)
         .put("protocol", row.protocol).put("latencyMs", row.latencyMs).put("jitterMs", row.jitterMs)
@@ -92,11 +105,16 @@ internal fun desktopProfile(config: String, name: String = "", id: String = UUID
         return DesktopProfile(id, title.ifBlank { parsed.name }, "Xray", parsed.endpoint, input, true)
     }
     val parsed = AwgConfig.parse(input)
+    val fromLink = AwgConfig.isShareLink(input)
     return DesktopProfile(
-        id, title.ifBlank { AwgConfig.shareLinkName(input) ?: parsed.kind.label },
-        parsed.kind.label, parsed.primaryEndpoint.orEmpty(), parsed.toConfText(), parsed.isFullTunnel
+        id, title.ifBlank { (if (fromLink) AwgConfig.shareLinkName(input) else null) ?: parsed.kind.label },
+        parsed.kind.label, parsed.primaryEndpoint.orEmpty(), if (fromLink) parsed.toConfText() else input,
+        parsed.isFullTunnel
     )
 }
+
+internal fun DesktopProfile.configurationIdentity(): String =
+    if (kind == "Xray") config else AwgConfig.parse(config).toConfText()
 
 internal fun desktopConfigInputs(text: String): List<String> {
     val input = text.trim().removePrefix("\uFEFF").trim()

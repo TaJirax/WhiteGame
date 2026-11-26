@@ -94,7 +94,7 @@ class WindowsTunnels(directory: Path) : AutoCloseable {
             ?: return WindowsTunnelStatus(false, null, "Disconnected", phase = "stopped")
         val state = read(tunnel.resolve("status.json"))
         val status = state?.optString("phase")
-        if (status in setOf("starting", "running") && !fresh(tunnel)) {
+        if (status in setOf("starting", "running", "stopping") && !fresh(tunnel)) {
             return WindowsTunnelStatus(
                 false, manifest.optString("name"), "The Windows tunnel supervisor stopped. Disconnect to clean up.",
                 phase = "recovery"
@@ -140,7 +140,7 @@ class WindowsTunnels(directory: Path) : AutoCloseable {
         val sessions = listOf(tunnel, dns).filter(Files::isDirectory)
         for (session in sessions) Files.writeString(session.resolve("stop"), "")
         val failed = sessions.filterNot { session ->
-            if (fresh(session)) await(session, Duration.ofSeconds(30)) { it in terminal }
+            if (fresh(session)) await(session, Duration.ofSeconds(35)) { it.optString("phase") in terminal }
             cleanupIfFinished(session)
         }
         if (failed.isNotEmpty()) {
@@ -198,9 +198,11 @@ class WindowsTunnels(directory: Path) : AutoCloseable {
             if (payload != null) manifest.put("payloadSha", sha256(payload.toByteArray(Charsets.UTF_8)))
             Files.writeString(session.resolve("session.json"), manifest.toString())
             if (payload != null) Files.writeString(configPath(session, manifest), payload)
-            launch(session, manifest, executable, recover = false)
+            val worker = launch(session, manifest, executable, recover = false)
             launched = true
-            val state = await(session, Duration.ofSeconds(45)) { it != "starting" }
+            val state = await(session, Duration.ofSeconds(45)) {
+                it.optString("worker") == worker && it.optString("phase") !in setOf("starting", "stopping")
+            }
             check(state?.optString("phase") == "running") {
                 state?.optString("detail")?.takeIf(String::isNotBlank)
                     ?: "Windows did not finish setting up the network session."
@@ -219,10 +221,11 @@ class WindowsTunnels(directory: Path) : AutoCloseable {
             ?: error("The Windows network session is being started by another WhiteGame window.")
         Files.writeString(session.resolve("stop"), "")
         // A fresh worker has the original adapter/service handles and can restore without UAC.
-        if (fresh(session)) {
-            await(session, Duration.ofSeconds(25)) { it in terminal }
+        val previousPhase = read(session.resolve("status.json"))?.optString("phase")
+        if (previousPhase != "recovery" && fresh(session)) {
+            val state = await(session, Duration.ofSeconds(35)) { it.optString("phase") in terminal }
             if (cleanupIfFinished(session)) return
-            if (fresh(session)) error("Windows is still closing the network session. Try again in a moment.")
+            if (state == null && fresh(session)) error("Windows is still closing the network session. Try again in a moment.")
         }
         val executable = when (manifest.getString("kind")) {
             "wireguard" -> WindowsEngines.wireGuard()
@@ -230,17 +233,23 @@ class WindowsTunnels(directory: Path) : AutoCloseable {
             "xray" -> WindowsEngines.xray()
             else -> null
         }
-        launch(session, manifest, executable, recover = true)
-        await(session, Duration.ofSeconds(25)) { it == "stopped" }
-        check(cleanupIfFinished(session)) { "Windows could not restore the prior network settings." }
+        val worker = launch(session, manifest, executable, recover = true)
+        val state = await(session, Duration.ofSeconds(35)) {
+            it.optString("worker") == worker && it.optString("phase") in terminal
+        }
+        check(cleanupIfFinished(session)) {
+            state?.optString("detail")?.takeIf(String::isNotBlank) ?: "Windows could not restore the prior network settings."
+        }
     }
 
-    private fun launch(session: Path, manifest: JSONObject, executable: Path?, recover: Boolean) {
+    private fun launch(session: Path, manifest: JSONObject, executable: Path?, recover: Boolean): String {
         val shell = Path.of(System.getenv("SystemRoot") ?: "C:/Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+        val workerId = UUID.randomUUID().toString()
         val child = buildString {
             appendLine("\$session = " + psLiteral(session.toString()))
             appendLine("\$engine = " + psLiteral(executable?.toString().orEmpty()))
             appendLine("\$ownerProcessId = " + ProcessHandle.current().pid())
+            appendLine("\$workerId = " + psLiteral(workerId))
             appendLine("\$recover = " + if (recover) "\$true" else "\$false")
             appendLine("\$manifest = ConvertFrom-Json -InputObject " + psLiteral(manifest.toString()))
             appendLine(supervisor)
@@ -280,6 +289,7 @@ class WindowsTunnels(directory: Path) : AutoCloseable {
             error("Windows did not respond to the administrator request.")
         }
         check(process.exitValue() == 0) { "Windows administrator permission was declined or unavailable." }
+        return workerId
     }
 
     private fun configPath(session: Path, manifest: JSONObject): Path {
@@ -299,11 +309,11 @@ class WindowsTunnels(directory: Path) : AutoCloseable {
         return true
     }
 
-    private fun await(session: Path, timeout: Duration, accept: (String) -> Boolean): JSONObject? {
+    private fun await(session: Path, timeout: Duration, accept: (JSONObject) -> Boolean): JSONObject? {
         val deadline = System.nanoTime() + timeout.toNanos()
         do {
             val state = read(session.resolve("status.json"))
-            if (state != null && accept(state.optString("phase"))) return state
+            if (state != null && accept(state)) return state
             Thread.sleep(180)
         } while (System.nanoTime() < deadline)
         return null

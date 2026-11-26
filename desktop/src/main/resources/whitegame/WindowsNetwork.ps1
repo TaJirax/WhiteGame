@@ -17,7 +17,7 @@ $prefix = if ($kind -eq 'amnezia') { 'AmneziaWGTunnel$' } else { 'WireGuardTunne
 $serviceName = $prefix + $adapter
 
 function Write-Status($phase, $detail, $counters = @{}) {
-    $status = @{ phase = $phase; detail = $detail }
+    $status = @{ phase = $phase; detail = $detail; worker = $workerId }
     foreach ($entry in $counters.GetEnumerator()) { $status[$entry.Key] = $entry.Value }
     $pending = Join-Path $session ('status-' + [guid]::NewGuid().ToString() + '.tmp')
     [IO.File]::WriteAllText($pending, ($status | ConvertTo-Json -Compress), $encoding)
@@ -58,7 +58,8 @@ function Start-Cli($file, $arguments) {
         throw 'The Windows tunnel client did not respond.'
     }
     if ($process.ExitCode -ne 0) {
-        throw 'The Windows tunnel client rejected this operation. Check its installed version and config.'
+        $operation = ($arguments -split ' ', 2)[0]
+        throw "The Windows tunnel client rejected $operation (exit code $($process.ExitCode))."
     }
 }
 
@@ -192,6 +193,13 @@ function Dns-ServerList($value) {
     return @($value | Where-Object { $_ } | ForEach-Object { [Net.IPAddress]::Parse([string]$_).ToString() })
 }
 
+function Read-StaticDns($guid, $family) {
+    $driver = if ($family -eq 'IPv4') { 'Tcpip' } else { 'Tcpip6' }
+    $key = "HKLM:\SYSTEM\CurrentControlSet\Services\$driver\Parameters\Interfaces\" + ([guid]$guid).ToString('B')
+    $static = Get-ItemPropertyValue -LiteralPath $key -Name NameServer -ErrorAction SilentlyContinue
+    Dns-ServerList (($static -join ',') -split '[,\s]+')
+}
+
 function Save-And-ApplyDns {
     $changes = @()
     $adapters = @(Get-NetRoute -DestinationPrefix @('0.0.0.0/0', '::/0') -ErrorAction SilentlyContinue |
@@ -205,10 +213,7 @@ function Save-And-ApplyDns {
             if (!$applied.Count) { continue }
             $entry = Get-DnsClientServerAddress -InterfaceIndex $index -AddressFamily $family -ErrorAction SilentlyContinue
             if (!$entry) { continue }
-            $driver = if ($family -eq 'IPv4') { 'Tcpip' } else { 'Tcpip6' }
-            $key = "HKLM:\SYSTEM\CurrentControlSet\Services\$driver\Parameters\Interfaces\" + $guid.ToString('B')
-            $static = Get-ItemPropertyValue -LiteralPath $key -Name NameServer -ErrorAction SilentlyContinue
-            $original = @(([string]$static -split '[,\s]+') | Where-Object { $_ })
+            $original = @(Read-StaticDns $guid $family)
             $changes += @{ guid = $guid.ToString(); family = $family; original = $original; applied = $applied }
         }
     }
@@ -227,18 +232,30 @@ function Save-And-ApplyDns {
 
 function Restore-Dns {
     if (!(Test-Path -LiteralPath $dnsPath -PathType Leaf)) { return }
-    $changes = @(Get-Content -LiteralPath $dnsPath -Raw -Encoding UTF8 | ConvertFrom-Json)
+    # Windows PowerShell emits a JSON array as one object on the pipeline.
+    $changes = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($dnsPath, $encoding))
     $allAdapters = @(Get-NetAdapter -IncludeHidden)
     foreach ($change in $changes) {
         $network = $allAdapters | Where-Object { [guid]$_.InterfaceGuid -eq [guid]$change.guid } | Select-Object -First 1
         if (!$network) { throw 'Reconnect the Windows network adapter and restore DNS again.' }
+        $configured = @(Read-StaticDns $change.guid $change.family)
+        if (($configured -join ',') -ne ((Dns-ServerList $change.applied) -join ',')) { continue }
         $entry = Get-DnsClientServerAddress -InterfaceIndex $network.ifIndex -AddressFamily $change.family
-        $current = @(Dns-ServerList $entry.ServerAddresses)
-        if (($current -join ',') -ne ($change.applied -join ',')) { continue }
-        if (@($change.original).Count -gt 0) {
-            Set-DnsClientServerAddress -InputObject $entry -ServerAddresses $change.original
+        $original = @(Dns-ServerList $change.original)
+        if ($original.Count -gt 0) {
+            Set-DnsClientServerAddress -InputObject $entry -ServerAddresses $original
         } else {
             Set-DnsClientServerAddress -InputObject $entry -ResetServerAddresses
+        }
+        $restored = @(Read-StaticDns $change.guid $change.family)
+        if (($restored -join ',') -ne ($original -join ',')) {
+            throw "Windows did not restore the previous $($change.family) DNS configuration."
+        }
+        if ($original.Count -gt 0) {
+            $entry = Get-DnsClientServerAddress -InterfaceIndex $network.ifIndex -AddressFamily $change.family
+            if (((Dns-ServerList $entry.ServerAddresses) -join ',') -ne ($original -join ',')) {
+                throw "Windows did not restore the previous $($change.family) resolver list."
+            }
         }
     }
     Clear-DnsClientCache
@@ -335,11 +352,12 @@ try {
 } catch {
     $failure = $_.Exception.Message
 } finally {
-    $restored = $true
+    $restoreFailure = $null
     if ($ownsSession) {
-        try { Stop-Session } catch { $restored = $false }
+        try { Write-Status 'stopping' 'Restoring prior Windows network settings…' } catch { }
+        try { Stop-Session } catch { $restoreFailure = $_.Exception.Message }
     }
-    if (!$restored) { Write-Status 'recovery' 'Windows could not restore the network settings. Retry Disconnect or Restore DNS.' }
+    if ($restoreFailure) { Write-Status 'recovery' ('Windows could not restore the network settings. ' + $restoreFailure) }
     elseif ($failure) { Write-Status 'failed' $failure }
     else { Write-Status 'stopped' 'Windows network settings restored.' }
 }

@@ -19,6 +19,7 @@ import java.net.Socket
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.SecureRandom
+import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
@@ -95,24 +96,21 @@ class WindowsNetworkIntegrationTest {
                 AllowedIPs = $remote/32
                 Endpoint = 127.0.0.1:${ready[1].toInt()}
             """.trimIndent()
-            client.connect("Windows WireGuard integration", config, autoReconnect = false)
-            adapter = tunnelAdapter(root)
-            assertTrue(client.status().connected)
-            await("authenticated WireGuard echo") { matchesEcho(remote, ready[2].toInt()) }
-            await("WireGuard handshake and bidirectional counters") {
-                val status = client.status()
-                status.lastHandshakeSeconds != null && (status.rxBytes ?: 0L) > 0 && (status.txBytes ?: 0L) > 0
+            AutoCloseable(client::disconnect).use {
+                client.connect("Windows WireGuard integration", config, autoReconnect = false)
+                adapter = tunnelAdapter(root)
+                assertTrue(client.status().connected)
+                await("authenticated WireGuard echo") { matchesEcho(remote, ready[2].toInt()) }
+                await("WireGuard handshake and bidirectional counters") {
+                    val status = client.status()
+                    status.lastHandshakeSeconds != null && (status.rxBytes ?: 0L) > 0 && (status.txBytes ?: 0L) > 0
+                }
+                val service = "'WireGuardTunnel$" + adapter + "'"
+                assertEquals("yes", powerShell("if (Get-Service -Name $service -ErrorAction SilentlyContinue) { 'yes' }"))
             }
-            val joined = adapter
-            val service = "'WireGuardTunnel$" + joined + "'"
-            assertEquals("yes", powerShell("if (Get-Service -Name $service -ErrorAction SilentlyContinue) { 'yes' }"))
         } finally {
-            try {
-                client.disconnect()
-            } finally {
-                fixture.outputStream.close()
-                if (!fixture.waitFor(5, TimeUnit.SECONDS)) fixture.destroyForcibly()
-            }
+            fixture.outputStream.close()
+            if (!fixture.waitFor(5, TimeUnit.SECONDS)) fixture.destroyForcibly()
         }
         assertFalse(client.status().connected)
         val service = "'WireGuardTunnel$" + checkNotNull(adapter) + "'"
@@ -130,14 +128,12 @@ class WindowsNetworkIntegrationTest {
                 .put("servers", JSONArray().put(JSONObject().put("address", "127.0.0.1")
                     .put("port", proxy.port).put("users", JSONArray().put(JSONObject()
                         .put("user", proxy.user).put("pass", proxy.password))))))
-            try {
+            AutoCloseable(client::disconnect).use {
                 client.connect("Windows Xray integration", profile.toString(), autoReconnect = false)
                 adapter = tunnelAdapter(root)
                 assertTrue(client.status().connected)
                 await("authenticated Xray Wintun echo") { matchesEcho(target, SocksEcho.targetPort) }
                 assertTrue("The proxy must authenticate the TUN connection.", proxy.authenticated.get() > 0)
-            } finally {
-                client.disconnect()
             }
         }
         assertFalse(client.status().connected)
@@ -185,7 +181,7 @@ class WindowsNetworkIntegrationTest {
     }
 
     private fun assertNoTestRoute(host: String) {
-        val route = powerShell("Get-NetRoute -DestinationPrefix '$host/32' -ErrorAction SilentlyContinue | Out-String")
+        val route = powerShell("Get-NetRoute -PolicyStore ActiveStore | Where-Object DestinationPrefix -eq '$host/32' | Out-String")
         assertTrue("The native service must remove its test route.", route.isBlank())
     }
 
@@ -215,16 +211,20 @@ class WindowsNetworkIntegrationTest {
     }
 
     private fun defaultRoutes(): List<String> = powerShell("""
-        Get-NetRoute -DestinationPrefix @('0.0.0.0/0', '::/0') -ErrorAction SilentlyContinue |
+        Get-NetRoute -PolicyStore ActiveStore |
+            Where-Object { ${'$'}_.DestinationPrefix -in @('0.0.0.0/0', '::/0') } |
             ForEach-Object { @(${'$'}_.InterfaceIndex, ${'$'}_.DestinationPrefix, ${'$'}_.NextHop, ${'$'}_.RouteMetric) -join '|' }
     """.trimIndent()).lineSequence().filter(String::isNotBlank).sorted().toList()
 
     private fun powerShell(command: String): String {
-        val process = ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command)
-            .redirectError(ProcessBuilder.Redirect.INHERIT).start()
+        val script = "\$ErrorActionPreference = 'Stop'\n$command\nexit 0"
+        val encoded = Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
+        val process = ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded).start()
         try {
             val output = CompletableFuture.supplyAsync { process.inputStream.bufferedReader().use { it.readText() } }
-            check(process.waitFor(15, TimeUnit.SECONDS) && process.exitValue() == 0) { "Windows inspection command failed." }
+            val error = CompletableFuture.supplyAsync { process.errorStream.bufferedReader().use { it.readText() } }
+            check(process.waitFor(15, TimeUnit.SECONDS)) { "Windows inspection command timed out." }
+            check(process.exitValue() == 0) { "Windows inspection command failed: ${error.get(2, TimeUnit.SECONDS).trim()}" }
             return output.get(2, TimeUnit.SECONDS).trim()
         } finally {
             if (process.isAlive) process.destroyForcibly()

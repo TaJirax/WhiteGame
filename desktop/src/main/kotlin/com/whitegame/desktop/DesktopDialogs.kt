@@ -2,6 +2,7 @@ package com.whitegame.desktop
 
 import com.google.zxing.WriterException
 import com.whitegame.app.connection.AwgConfig
+import com.whitegame.app.connection.ConfigException
 import com.whitegame.app.connection.Keys
 import com.whitegame.app.connection.encodeTunnelQr
 import com.whitegame.app.connection.tunnelConfigFileName
@@ -33,26 +34,54 @@ internal class DesktopDialogs(
 ) {
     private var currentDialog: JDialog? = null
 
+    fun editDnsResolver(resolver: DesktopDnsResolver? = null, copy: Boolean = false) {
+        val name = style.field(resolver?.name.orEmpty())
+        val address = style.field(resolver?.address.orEmpty())
+        val id = resolver?.takeUnless { copy }?.id
+        val title = if (id == null) "Add DNS resolver" else "Edit DNS resolver"
+        val content = style.column(
+            style.legend("Provider name"),
+            name,
+            style.legend("IPv4 or IPv6 address"),
+            address
+        )
+        while (confirm(content, title, "Save")) {
+            val failure = runCatching { customDnsResolver(name.text, address.text) }.exceptionOrNull()
+            if (failure == null) {
+                dispatch(DesktopAction.SaveDnsResolver(name.text, address.text, id))
+                return
+            }
+            message(failure.message.orEmpty(), title)
+        }
+    }
+
     fun editProfile(profile: DesktopProfile? = null) {
         val name = style.field(profile?.name.orEmpty())
-        val config = style.editor(profile?.config.orEmpty(), 12)
+        val config = DesktopConfigEditor(
+            style, profile?.config.orEmpty(), profile != null && profile.kind != "Xray"
+        ) { message(it, "Config editor") }
         val content = style.column(
             style.legend("Profile name"),
             name,
-            style.legend("WireGuard config, WireGuard share link or Xray outbound"),
-            style.scroll(config, height = 235),
+            config.component,
             style.grid(
                 style.button("WireGuard template") {
-                    if (config.text.isBlank() || confirm("Replace the config text in this editor?", "Replace text")) {
-                        config.text = "[Interface]\nPrivateKey = ${Keys.generatePrivateKey()}\nAddress = 10.8.0.2/32\n\n" +
+                    if (!config.hasDraft() || confirm("Replace the config text in this editor?", "Replace text")) {
+                        config.replace("[Interface]\nPrivateKey = ${Keys.generatePrivateKey()}\nAddress = 10.8.0.2/32\n\n" +
                             "[Peer]\nPublicKey = SERVER_PUBLIC_KEY\nAllowedIPs = 0.0.0.0/0, ::/0\n" +
-                            "Endpoint = vpn.example.com:51820\nPersistentKeepalive = 25\n"
+                            "Endpoint = vpn.example.com:51820\nPersistentKeepalive = 25\n")
                     }
                 },
-                style.button("Open file") { openConfig { _, text -> config.text = text } },
+                style.button("Open file") { openConfig { _, text -> config.replace(text) } },
                 style.button("Copy public key") {
-                    val key = runCatching { AwgConfig.parse(config.text).publicKey }.getOrElse {
-                        val privateKey = privateKeyLine.find(config.text)?.groupValues?.get(1)
+                    val text = try {
+                        config.text()
+                    } catch (e: ConfigException) {
+                        message(e.message ?: "Check the WireGuard fields first.", "Public key")
+                        return@button
+                    }
+                    val key = runCatching { AwgConfig.parse(text).publicKey }.getOrElse {
+                        val privateKey = privateKeyLine.find(text)?.groupValues?.get(1)
                         privateKey?.let { runCatching { Keys.publicKeyOf(it) }.getOrNull() }
                     }
                     if (key == null) message("Add or generate a WireGuard private key first.", "Public key")
@@ -60,8 +89,14 @@ internal class DesktopDialogs(
                 }
             )
         ).apply { preferredSize = Dimension(560, preferredSize.height) }
-        if (confirm(content, if (profile == null) "New tunnel" else "Edit ${profile.name}", "Save")) {
-            dispatch(DesktopAction.SaveProfile(name.text, config.text, profile?.id))
+        dialog(content, if (profile == null) "New tunnel" else "Edit ${profile.name}", "Save") { complete ->
+            val text = try {
+                config.text()
+            } catch (e: ConfigException) {
+                complete(e.message ?: "Could not read the config draft.")
+                return@dialog
+            }
+            dispatch(DesktopAction.SaveProfile(name.text, text, profile?.id, complete))
         }
     }
 
@@ -192,7 +227,7 @@ internal class DesktopDialogs(
 
     fun copy(value: String) {
         runCatching { Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(value), null) }
-            .onFailure { message("The Windows clipboard is temporarily unavailable.", "Copy") }
+            .onFailure { message("The clipboard is temporarily unavailable.", "Copy") }
     }
 
     fun confirm(content: Any, title: String, action: String = "Delete") = dialog(content, title, action)
@@ -201,7 +236,12 @@ internal class DesktopDialogs(
         dialog(content, title, null)
     }
 
-    private fun dialog(content: Any, title: String, actionLabel: String?): Boolean {
+    private fun dialog(
+        content: Any,
+        title: String,
+        actionLabel: String?,
+        submit: (((String?) -> Unit) -> Unit)? = null
+    ): Boolean {
         val previous = currentDialog
         val parent = previous ?: owner
         val dialog = JDialog(parent, title, Dialog.ModalityType.APPLICATION_MODAL)
@@ -209,18 +249,31 @@ internal class DesktopDialogs(
         val body = content as? JComponent ?: style.paragraph(content.toString(), rows = 2).apply {
             preferredSize = Dimension(410, preferredSize.height)
         }
+        val error = submit?.let { style.paragraph("", rows = 2, foreground = style.trace) }
+        var submitting = false
         val accept = style.button(actionLabel ?: "Close", primary = true) {
-            accepted = true
-            dialog.dispose()
+            if (submitting) return@button
+            fun complete(message: String?) {
+                submitting = false
+                if (message == null) {
+                    accepted = true
+                    dialog.dispose()
+                } else {
+                    error?.text = message
+                    error?.caretPosition = 0
+                }
+            }
+            if (submit == null) complete(null) else {
+                submitting = true
+                submit(::complete)
+            }
         }
         val footer = if (actionLabel == null) accept else style.grid(
             style.button("Cancel") { dialog.dispose() },
             accept
         )
         dialog.contentPane = style.column(
-            style.label(title, style.title),
-            body,
-            footer,
+            *listOfNotNull(style.label(title, style.title), body, error, footer).toTypedArray(),
             gap = DesktopSpace.md
         ).apply {
             background = style.ink

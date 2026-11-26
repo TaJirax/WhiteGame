@@ -73,7 +73,7 @@ internal object DesktopProbes {
         onProgress: (SpeedStage, CloudflareSpeedResult) -> Unit = { _, _ -> }
     ): CloudflareSpeedResult {
         val parsed = outbound(config)
-        return withSpeedRoute(WindowsEngines.xray(), parsed) { port -> measureSpeed(port, onProgress) }
+        return withSpeedRoute(DesktopEngines.xray(), parsed) { port -> measureSpeed(port, onProgress) }
     }
 
     private suspend fun measureSpeed(
@@ -104,7 +104,7 @@ internal object DesktopProbes {
         }
         val peer = profile.peers.single()
         val candidates = WireGuardProbe.endpoints(endpoints.ifBlank { peer.endpoint.orEmpty() })
-        val engine = WindowsEngines.xray()
+        val engine = DesktopEngines.xray()
         return candidates.mapIndexed { index, endpoint ->
             currentCoroutineContext().ensureActive()
             onProgress(index + 1, candidates.size, endpoint)
@@ -127,12 +127,13 @@ internal object DesktopProbes {
         onProgress: (Int, Int) -> Unit = { _, _ -> }
     ): List<DnsItem> {
         val distinct = resolvers.distinctBy(DnsItem::ip)
+        val attempts = if (distinct.size == 1) 5 else 3
         val results = mutableListOf<DnsItem>()
-        for (batch in distinct.chunked(8)) {
+        for (batch in distinct.chunked(24)) {
             results += withContext(Dispatchers.IO) {
                 batch.map { resolver ->
                     async {
-                        val samples = List(5) {
+                        val samples = List(attempts) {
                             ensureActive()
                             DnsClient.query(resolver.ip, "example.com", timeoutMs = 1_500)?.ms
                         }
@@ -172,7 +173,7 @@ internal object DesktopProbes {
 
         return try {
             val engine = try {
-                WindowsEngines.xray()
+                DesktopEngines.xray()
             } catch (_: Exception) {
                 throw XrayStartupException("Install Xray to measure saved tunnel routes")
             }
@@ -245,7 +246,7 @@ internal object DesktopProbes {
             SubscriptionScan.Probe.PROXY, SubscriptionScan.Probe.WIREGUARD -> {
                 try {
                     val parsed = outbound(node.conf)
-                    val delay = routedPing(WindowsEngines.xray(), parsed)
+                    val delay = routedPing(DesktopEngines.xray(), parsed)
                     SubscriptionScan.proxyResult(node, delay, successLabel = "Cloudflare HTTPS")
                 } catch (e: CancellationException) {
                     throw e

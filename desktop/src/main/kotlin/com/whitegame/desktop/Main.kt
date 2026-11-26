@@ -2,7 +2,6 @@ package com.whitegame.desktop
 
 import java.nio.channels.FileChannel
 import java.nio.file.Files
-import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import javax.swing.JOptionPane
 import javax.swing.SwingUtilities
@@ -10,9 +9,7 @@ import javax.swing.SwingUtilities
 fun main() {
     SwingUtilities.invokeLater {
         try {
-            val appData = System.getenv("LOCALAPPDATA")?.takeIf(String::isNotBlank)
-                ?: System.getProperty("user.home")
-            val directory = Files.createDirectories(Path.of(appData, "WhiteGame"))
+            val directory = Files.createDirectories(DesktopPlatform.dataDirectory())
             val instanceFile = FileChannel.open(
                 directory.resolve("whitegame.lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE
             )

@@ -99,12 +99,33 @@ jobs:
             desktop/build/test-results/
           if-no-files-found: ignore
 
+  desktop-linux:
+    name: Linux desktop build and tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Build and test the Linux package
+        run: bash desktop/package-linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whitegame-linux-x64
+          path: dist/WhiteGame-Linux-x64-*.tar.gz
+          if-no-files-found: error
+
   release:
-    name: Publish signed Android and tested Windows builds
+    name: Publish signed Android and tested desktop builds
     # Tags only. Never runs for a pull request, so a fork cannot reach the
     # signing secrets.
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, desktop]
+    needs: [test, desktop, desktop-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -189,6 +210,12 @@ jobs:
           name: whitegame-windows-x64
           path: dist/desktop
 
+      - name: Download tested Linux package
+        uses: actions/download-artifact@v4
+        with:
+          name: whitegame-linux-x64
+          path: dist/desktop
+
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -196,8 +223,9 @@ jobs:
           set -eu
           version="${GITHUB_REF_NAME#v}"
           windows="dist/desktop/WhiteGame-Windows-x64-${version}.zip"
-          test -f "$windows"
-          gh release create "$GITHUB_REF_NAME" dist/*.apk "$windows" \
+          linux="dist/desktop/WhiteGame-Linux-x64-${version}.tar.gz"
+          test -f "$windows" && test -f "$linux"
+          gh release create "$GITHUB_REF_NAME" dist/*.apk "$windows" "$linux" \
             --verify-tag \
             --title "WhiteGame ${GITHUB_REF_NAME#v}" \
             --generate-notes

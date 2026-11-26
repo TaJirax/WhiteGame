@@ -12,9 +12,16 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        maven("https://maven.aliyun.com/repository/google")
-        google()
         mavenCentral()
+        maven("https://maven.aliyun.com/repository/google") {
+            content {
+                includeGroupByRegex("androidx\\..*")
+                includeGroupByRegex("com\\.android(\\..*)?")
+                includeGroup("com.google.android.material")
+                includeGroup("com.google.testing.platform")
+            }
+        }
+        google()
         maven("https://maven.aliyun.com/repository/public")
     }
 }
