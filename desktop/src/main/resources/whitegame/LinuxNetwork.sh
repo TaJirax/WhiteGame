@@ -19,8 +19,9 @@ if [[ $operation == tunnel ]]; then
     dns_domains=("$@")
     workspace_root=/run
     if [[ ${engine##*/} == wg-quick && -d /etc/wireguard ]] &&
-        grep -Fxq 'wg-quick (enforce)' /sys/kernel/security/apparmor/profiles 2>/dev/null; then
-        # The distribution's enforcing policy reads configs only here.
+        { [[ -f /etc/apparmor.d/wg-quick ]] ||
+            grep -Fxq 'wg-quick (enforce)' /sys/kernel/security/apparmor/profiles 2>/dev/null; }; then
+        # Look for the on-disk policy too because a network namespace may hide securityfs.
         workspace_root=/etc/wireguard
     fi
     workspace=$(mktemp -d "$workspace_root/whitegame.XXXXXXXX")
