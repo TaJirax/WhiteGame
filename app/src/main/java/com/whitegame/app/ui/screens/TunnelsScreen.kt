@@ -143,19 +143,20 @@ fun TunnelsScreen(vm: ConnectionViewModel = hiltViewModel()) {
         }
     }
 
-    if (editing != null) {
-        BackHandler {
+    val editorTarget = editing
+    if (editorTarget != null) {
+        val closeEditor = {
             editing = null
             vm.clearEditorMessages()
         }
-        TunnelEditor(
-            target = editing!!,
-            vm = vm,
-            onClose = {
-                editing = null
-                vm.clearEditorMessages()
-            }
-        )
+        BackHandler(onBack = closeEditor)
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+            SecondaryButton(
+                "Back to tunnels", onClick = closeEditor, height = 44.dp,
+                modifier = Modifier.padding(start = Space.edge, top = Space.sm).width(144.dp)
+            )
+            TunnelEditor(target = editorTarget, vm = vm, onClose = closeEditor)
+        }
         return
     }
 
@@ -564,7 +565,6 @@ private fun TunnelEditor(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = Space.edge)
     ) {
-        Spacer(Modifier.statusBarsPadding())
         VSpace(Space.sm)
         ScreenHeader(
             title = if (existing == null) "New tunnel" else "Edit tunnel",

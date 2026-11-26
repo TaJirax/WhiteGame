@@ -49,6 +49,7 @@ import com.whitegame.app.ui.components.DataRow
 import com.whitegame.app.ui.components.EmptyState
 import com.whitegame.app.ui.components.Hairline
 import com.whitegame.app.ui.components.Legend
+import com.whitegame.app.ui.components.Notice
 import com.whitegame.app.ui.components.PrimaryButton
 import com.whitegame.app.ui.components.RowGroup
 import com.whitegame.app.ui.components.SecondaryButton
@@ -63,6 +64,7 @@ import com.whitegame.app.ui.theme.Type
 import com.whitegame.app.viewmodel.ConnectionViewModel
 import com.whitegame.app.viewmodel.DnsViewModel
 import com.whitegame.app.viewmodel.TestViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -104,6 +106,7 @@ private fun ReportSection(vm: ConnectionViewModel = hiltViewModel()) {
     val scope = rememberCoroutineScope()
     var report by remember { mutableStateOf<DeviceReport?>(null) }
     var loading by remember { mutableStateOf(false) }
+    var scanError by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -116,9 +119,17 @@ private fun ReportSection(vm: ConnectionViewModel = hiltViewModel()) {
                 onClick = {
                     if (loading) return@PrimaryButton
                     loading = true
+                    scanError = null
                     scope.launch {
-                        report = withContext(Dispatchers.IO) { buildDeviceReport(context) }
-                        loading = false
+                        try {
+                            report = withContext(Dispatchers.IO) { buildDeviceReport(context) }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            scanError = "Could not finish the device scan. Try again."
+                        } finally {
+                            loading = false
+                        }
                     }
                 },
                 loading = loading,
@@ -127,6 +138,7 @@ private fun ReportSection(vm: ConnectionViewModel = hiltViewModel()) {
                 height = 48.dp
             )
         }
+        scanError?.let { message -> item { Notice(message, emphasis = true) } }
 
         val r = report
         if (r == null) {
@@ -302,10 +314,9 @@ private fun HistoryCard(
 }
 
 /**
- * Blocking: reads hardware counters and samples three public resolvers. Call from an IO
- * dispatcher.
+ * Reads hardware counters and samples three public resolvers from an IO dispatcher.
  */
-fun buildDeviceReport(ctx: Context): DeviceReport {
+private suspend fun buildDeviceReport(ctx: Context): DeviceReport {
     val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
     val mem = ActivityManager.MemoryInfo()
     am.getMemoryInfo(mem)
@@ -334,7 +345,7 @@ fun buildDeviceReport(ctx: Context): DeviceReport {
         else -> "Mobile carrier"
     }
 
-    val (samples, loss) = kotlinx.coroutines.runBlocking { NetworkProber.livePingSuite(8) }
+    val (samples, loss) = if (caps == null) emptyList<Long>() to 0 else NetworkProber.livePingSuite(8)
     val live = samples.lastOrNull()
     val avg = if (samples.isNotEmpty()) samples.sum() / samples.size else null
     val latencyLabel = when {
@@ -361,11 +372,15 @@ fun buildDeviceReport(ctx: Context): DeviceReport {
         totalRamGb >= 4 -> "Hardware is fine on medium settings."
         else -> "Low memory — close background apps before a ranked match."
     }
-    advice += "Path is " + networkType.lowercase() + " with " + (avg?.toString() ?: "--") +
-        "ms average and " + loss + "% loss."
-    if ((avg ?: 0) > 100) advice += "Base latency is high before any tunnel — prefer a nearby server region."
-    if (loss >= 20) advice += "Packets are being dropped on this path; expect rubber-banding."
-    if (loss < 5 && (avg ?: 999) < 70) advice += "This path is good enough for competitive play as-is."
+    if (caps == null) {
+        advice += "Connect to a network to measure latency."
+    } else {
+        advice += "Path is " + networkType.lowercase() + " with " + (avg?.toString() ?: "--") +
+            "ms average and " + loss + "% loss."
+        if ((avg ?: 0) > 100) advice += "Base latency is high before any tunnel — prefer a nearby server region."
+        if (loss >= 20) advice += "Packets are being dropped on this path; expect rubber-banding."
+        if (loss < 5 && (avg ?: 999) < 70) advice += "This path is good enough for competitive play as-is."
+    }
 
     return DeviceReport(lines, advice, ispHint, networkType, live, avg, samples, latencyLabel)
 }

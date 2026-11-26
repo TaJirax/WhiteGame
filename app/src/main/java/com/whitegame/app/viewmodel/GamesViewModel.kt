@@ -112,7 +112,7 @@ class GamesViewModel @Inject constructor(
         catalogUrl = clean
         RemoteEndpoints.gamesUrl = clean
         catalogPrefs.edit().putString("url", clean).apply()
-        updateMessage = if (clean.isEmpty()) "Using Google Play and the bundled catalog" else "Catalog URL saved. Tap Update to fetch games."
+        updateMessage = if (clean.isEmpty()) "Using Google Play and the bundled catalog" else "Catalog URL saved. Tap Update catalog to fetch games."
     }
     private val playCache = PlayCache(context)
     private var catalog: List<GameInfo> = emptyList()
@@ -152,20 +152,22 @@ class GamesViewModel @Inject constructor(
 
     /** Cheap and silent: runs on every return to the screen, so a newly installed game appears. */
     fun rescan(quiet: Boolean = false) {
-        if (scanJob?.isActive == true || updating || lookupPackage != null) return
-        if (!quiet) scanning = true
+        if (updating || lookupPackage != null) return
+        if (!quiet) {
+            scanning = true
+            updateMessage = "Scanning this device for games"
+        }
+        if (scanJob?.isActive == true) return
         scanJob = viewModelScope.launch {
             try {
-
-            val (list, found) = withContext(Dispatchers.IO) {
-                catalog = assetLoader.loadGames()
-                scanDevice()
-            }
-            games = list
-            deviceGames = found
-            installedIds = found.mapNotNull { it.gameId }.toSet()
-            scanning = false
-            if (!updating) updateMessage = summary()
+                val (list, found) = withContext(Dispatchers.IO) {
+                    catalog = assetLoader.loadGames()
+                    scanDevice()
+                }
+                games = list
+                deviceGames = found
+                installedIds = found.mapNotNull { it.gameId }.toSet()
+                if (!updating) updateMessage = summary()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -177,7 +179,7 @@ class GamesViewModel @Inject constructor(
     }
 
     /**
-     * The Update button: rescans, then asks Google Play about installed apps nothing else could
+     * Update catalog rescans, then asks Google Play about installed apps nothing else could
      * classify — its genre says "game", its publisher domains give servers to test — and pulls
      * the hosted catalog when one is configured.
      */
@@ -284,7 +286,7 @@ class GamesViewModel @Inject constructor(
         val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val fromLauncher = (runCatching { pm.queryIntentActivities(launcher, 0) }.getOrDefault(emptyList()) +
             runCatching { pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER), 0) }.getOrDefault(emptyList()))
-            .map { it.activityInfo.applicationInfo }
+            .mapNotNull { it.activityInfo?.applicationInfo }
         // Some games only expose a leanback / game launcher entry; the catalog knows them by package.
         val fromCatalog = catalog.flatMap { it.packageNames }.mapNotNull { pkg ->
             runCatching { pm.getApplicationInfo(pkg, 0) }.getOrNull()

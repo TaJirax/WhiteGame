@@ -611,17 +611,21 @@ private fun GamesSection(vm: GamesViewModel = hiltViewModel()) {
             }
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(Space.sm), verticalAlignment = Alignment.CenterVertically) {
-                Chip("All titles", !vm.showInstalledOnly, onClick = { if (vm.showInstalledOnly) vm.toggleInstalledOnly() })
-                Chip("My games (${vm.deviceGames.size})", vm.showInstalledOnly, onClick = { if (!vm.showInstalledOnly) vm.toggleInstalledOnly() })
-                Spacer(Modifier.weight(1f))
-                SecondaryButton(
-                    if (vm.updating) "…" else "Update",
-                    onClick = { vm.updateGamesList() },
-                    loading = vm.updating,
-                    height = 36.dp,
-                    modifier = Modifier.width(92.dp)
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
+                    Chip("All titles", !vm.showInstalledOnly, onClick = { if (vm.showInstalledOnly) vm.toggleInstalledOnly() })
+                    Chip("My games (${vm.deviceGames.size})", vm.showInstalledOnly, onClick = { if (!vm.showInstalledOnly) vm.toggleInstalledOnly() })
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
+                    PrimaryButton(
+                        "Scan device", onClick = { vm.rescan() }, enabled = !vm.updating && vm.lookupPackage == null,
+                        loading = vm.scanning, height = 44.dp, modifier = Modifier.weight(1f)
+                    )
+                    SecondaryButton(
+                        "Update catalog", onClick = { vm.updateGamesList() }, enabled = !vm.scanning && vm.lookupPackage == null,
+                        loading = vm.updating, height = 44.dp, modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
         item { ProgressStrip(vm.scanning || vm.updating, vm.updateMessage) }
@@ -667,7 +671,7 @@ private fun GamesSection(vm: GamesViewModel = hiltViewModel()) {
                 RowGroup {
                     EmptyState(
                         "No matches",
-                        if (vm.showInstalledOnly) "No games found on this device. Install one, then tap Rescan."
+                        if (vm.showInstalledOnly) "Try Scan device after installing a game, or choose All titles."
                         else "No game matches \"" + query + "\"."
                     )
                 }

@@ -3,6 +3,7 @@ package com.whitegame.app.network
 import com.whitegame.app.model.TcpProbeResult
 import com.whitegame.app.model.UdpProbeResult
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.net.DatagramPacket
@@ -50,7 +51,7 @@ object NetworkProber {
                 }.coerceIn(1, 9999)
             } catch (_: Exception) { null }
             if (ms != null) samples.add(ms)
-            try { Thread.sleep(40) } catch (_: Exception) {}
+            delay(40)
         }
         val loss = ((probes - samples.size) * 100) / probes
         val avg = if (samples.isNotEmpty()) samples.sum() / samples.size else null
