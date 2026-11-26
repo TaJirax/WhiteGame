@@ -8,7 +8,7 @@
 | --- | --- |
 | Android | Kotlin, Jetpack Compose, and Hilt. Android 6.0 and later (`minSdk 23`, `targetSdk 34`). The bundled `libwg-go.so` runs WireGuard and AmneziaWG. Xray uses AndroidLibXrayLite in a separate `:xray` process and requires Android 7.0 or later. |
 | Windows x64 | The Kotlin/Swing app bundles Java, Xray, and Wintun. Device-wide WireGuard and AmneziaWG use their installed Windows clients. |
-| Linux x64 | The Kotlin/Swing app bundles Java and Xray for isolated tests. Device-wide WireGuard and AmneziaWG use the installed `wg-quick` and `awg-quick` tools. System DNS changes use `systemd-resolved`. |
+| Linux x64 | The Kotlin/Swing app bundles Java and Xray for device-wide TUN and isolated tests. WireGuard and AmneziaWG use the installed `wg-quick` and `awg-quick` tools. System DNS changes use `systemd-resolved`. |
 
 The desktop and Android apps share profile parsing, config export, and network
 measurement code. Desktop engine installation, privilege prompts, profile
@@ -68,11 +68,10 @@ Python regression suite and an isolated WireGuard integration test.
    both ARM APKs, the Windows x64 ZIP, and the Linux x64 tarball.
    [Release workflow](.github/workflows/ci.yml)
 
-CI runs Android tests and lint, desktop regression tests, and native DNS and
-authenticated WireGuard integration tests. The native checks cover Windows
-Server 2022 and Ubuntu 24.04 and 26.04. Windows also verifies Xray routing and
-cleanup through Wintun. GitHub-hosted runners isolate the native network changes
-from developer machines. [CI results](https://github.com/TaJirax/WhiteGame/actions)
+CI runs Android tests and lint, desktop regression tests, and native tests for
+DNS, authenticated WireGuard traffic, and Xray TUN routing and cleanup. The
+native checks cover Windows Server 2022 and Ubuntu 24.04 and 26.04. GitHub-hosted
+runners isolate the network changes from developer machines. [CI results](https://github.com/TaJirax/WhiteGame/actions)
 
 ## Networking and measurements
 

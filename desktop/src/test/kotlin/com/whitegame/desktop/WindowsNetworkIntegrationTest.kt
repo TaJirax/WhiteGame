@@ -68,10 +68,23 @@ class WindowsNetworkIntegrationTest {
 
     @Test(timeout = 170_000)
     fun wireGuardDriverCarriesAuthenticatedPayloadAndRemovesService() = withNetwork { root, client ->
+        verifyWireGuardTunnel(root, client, "10.203.218.1", "10.203.218.2", "10.203.218.2/32", setOf("10.203.218.2/32"))
+    }
+
+    @Test(timeout = 240_000)
+    fun wireGuardFullIpv4RouteCarriesAuthenticatedPayloadAndRestoresRoutes() = withNetwork { root, client ->
+        withIpv4RouteGuards {
+            verifyWireGuardTunnel(root, client, "198.18.32.1", "198.18.32.2", "0.0.0.0/0", setOf("0.0.0.0/1", "128.0.0.0/1"))
+        }
+    }
+
+    private fun verifyWireGuardTunnel(
+        root: Path, client: WindowsTunnels, local: String, remote: String, allowedIps: String, tunnelRoutes: Set<String>
+    ) {
         // The remote address belongs only to the userspace peer. A direct
         // Windows connection to it could not satisfy the random echo check.
-        val remote = "10.203.218.2"
-        val local = "10.203.218.1"
+        val routesBefore = activeRoutes(tunnelRoutes)
+        val defaultsBefore = defaultRoutes()
         val clientKey = Keys.generatePrivateKey()
         val peerKey = Keys.generatePrivateKey()
         val executable = checkNotNull(System.getenv("WHITEGAME_WIREGUARD_TEST_PEER"))
@@ -93,14 +106,28 @@ class WindowsNetworkIntegrationTest {
 
                 [Peer]
                 PublicKey = ${Keys.publicKeyOf(peerKey)}
-                AllowedIPs = $remote/32
+                AllowedIPs = $allowedIps
                 Endpoint = 127.0.0.1:${ready[1].toInt()}
             """.trimIndent()
             AutoCloseable(client::disconnect).use {
-                client.connect("Windows WireGuard integration", config, autoReconnect = false)
-                adapter = tunnelAdapter(root)
+                client.connect("Windows WireGuard integration", config, killSwitch = false, autoReconnect = false)
+                val activeAdapter = tunnelAdapter(root)
+                adapter = activeAdapter
                 assertTrue(client.status().connected)
                 await("authenticated WireGuard echo") { matchesEcho(remote, ready[2].toInt()) }
+                val installedRoutes = powerShell("""
+                    ${'$'}index = (Get-NetAdapter -Name '$activeAdapter' -IncludeHidden).InterfaceIndex
+                    Get-NetRoute -InterfaceIndex ${'$'}index -PolicyStore ActiveStore -AddressFamily IPv4 |
+                        Select-Object -ExpandProperty DestinationPrefix
+                """.trimIndent()).lineSequence().toSet()
+                assertTrue("The native adapter must install $tunnelRoutes.", installedRoutes.containsAll(tunnelRoutes))
+                val chosenRoute = powerShell("""
+                    ${'$'}index = (Get-NetAdapter -Name '$activeAdapter' -IncludeHidden).InterfaceIndex
+                    Find-NetRoute -RemoteIPAddress '$remote' |
+                        Where-Object { ${'$'}_.DestinationPrefix -and ${'$'}_.InterfaceIndex -eq ${'$'}index } |
+                        Select-Object -ExpandProperty DestinationPrefix
+                """.trimIndent())
+                assertTrue("The echo must use the advertised tunnel route.", chosenRoute in tunnelRoutes)
                 await("WireGuard handshake and bidirectional counters") {
                     val status = client.status()
                     status.lastHandshakeSeconds != null && (status.rxBytes ?: 0L) > 0 && (status.txBytes ?: 0L) > 0
@@ -115,7 +142,8 @@ class WindowsNetworkIntegrationTest {
         assertFalse(client.status().connected)
         val service = "'WireGuardTunnel$" + checkNotNull(adapter) + "'"
         assertEquals("gone", powerShell("if (!(Get-Service -Name $service -ErrorAction SilentlyContinue)) { 'gone' }"))
-        assertNoTestRoute(remote)
+        assertEquals("The native service must restore its tunnel destinations.", routesBefore, activeRoutes(tunnelRoutes))
+        assertEquals("The original default routes must survive the tunnel.", defaultsBefore, defaultRoutes())
     }
 
     @Test(timeout = 160_000)
@@ -180,9 +208,56 @@ class WindowsNetworkIntegrationTest {
         throw AssertionError("Timed out waiting for $description.")
     }
 
-    private fun assertNoTestRoute(host: String) {
-        val route = powerShell("Get-NetRoute -PolicyStore ActiveStore | Where-Object DestinationPrefix -eq '$host/32' | Out-String")
-        assertTrue("The native service must remove its test route.", route.isBlank())
+    private fun withIpv4RouteGuards(block: () -> Unit) {
+        // The complement of the benchmark network 198.18.0.0/15, with the
+        // other /1 divided into /2s. Runner traffic keeps its normal gateway
+        // while the fixture address can only reach the installed tunnel /1.
+        val protectedPrefixes = listOf(
+            "0.0.0.0/2", "64.0.0.0/2", "128.0.0.0/2", "224.0.0.0/3", "208.0.0.0/4", "200.0.0.0/5",
+            "192.0.0.0/6", "196.0.0.0/7", "199.0.0.0/8", "198.128.0.0/9", "198.64.0.0/10", "198.32.0.0/11",
+            "198.0.0.0/12", "198.24.0.0/13", "198.20.0.0/14", "198.16.0.0/15"
+        )
+        val baseline = activeRoutes(protectedPrefixes.toSet())
+        val prefixes = protectedPrefixes.joinToString(",") { "'$it'" }
+        val guard = JSONObject(powerShell("""
+            ${'$'}default = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -PolicyStore ActiveStore |
+                Where-Object { ${'$'}_.NextHop -ne '0.0.0.0' } |
+                Sort-Object { ${'$'}_.RouteMetric + ${'$'}_.InterfaceMetric } | Select-Object -First 1
+            if (!${'$'}default) { throw 'The Windows VM has no IPv4 default gateway.' }
+            ${'$'}existing = @(Get-NetRoute -PolicyStore ActiveStore -AddressFamily IPv4 | Select-Object -ExpandProperty DestinationPrefix)
+            ${'$'}created = @()
+            ${'$'}lifetime = New-TimeSpan -Minutes 5
+            try {
+                foreach (${'$'}prefix in @($prefixes)) {
+                    if (${'$'}existing -contains ${'$'}prefix) { continue }
+                    ${'$'}created += New-NetRoute -DestinationPrefix ${'$'}prefix -InterfaceIndex ${'$'}default.InterfaceIndex `
+                        -NextHop ${'$'}default.NextHop -RouteMetric ${'$'}default.RouteMetric -PolicyStore ActiveStore `
+                        -ValidLifetime ${'$'}lifetime -PreferredLifetime ${'$'}lifetime
+                }
+                @{ index = ${'$'}default.InterfaceIndex; gateway = ${'$'}default.NextHop; prefixes = @(${'$'}created.DestinationPrefix) } |
+                    ConvertTo-Json -Compress
+            } catch {
+                if (${'$'}created.Count) { Remove-NetRoute -InputObject ${'$'}created -Confirm:${'$'}false }
+                throw
+            }
+        """.trimIndent(), timeoutSeconds = 45))
+        val index = guard.getInt("index")
+        val gateway = guard.getString("gateway").also { require(it.matches(Regex("[0-9]+(?:\\.[0-9]+){3}"))) }
+        val created = guard.getJSONArray("prefixes")
+        val owned = (0 until created.length()).mapNotNull { created.optString(it).takeIf(protectedPrefixes::contains) }
+        try {
+            block()
+        } finally {
+            if (owned.isNotEmpty()) {
+                val ownedPrefixes = owned.joinToString(",") { "'$it'" }
+                powerShell("""
+                    ${'$'}routes = @(Get-NetRoute -InterfaceIndex $index -NextHop '$gateway' -PolicyStore ActiveStore |
+                        Where-Object { ${'$'}_.DestinationPrefix -in @($ownedPrefixes) })
+                    if (${'$'}routes.Count) { Remove-NetRoute -InputObject ${'$'}routes -Confirm:${'$'}false }
+                """.trimIndent(), timeoutSeconds = 45)
+            }
+        }
+        assertEquals("The original routes must survive the IPv4 guard.", baseline, activeRoutes(protectedPrefixes.toSet()))
     }
 
     private data class DnsSetting(val guid: String, val servers: List<String>, val staticValue: String)
@@ -210,20 +285,25 @@ class WindowsNetworkIntegrationTest {
         }.sortedBy(DnsSetting::guid)
     }
 
-    private fun defaultRoutes(): List<String> = powerShell("""
-        Get-NetRoute -PolicyStore ActiveStore |
-            Where-Object { ${'$'}_.DestinationPrefix -in @('0.0.0.0/0', '::/0') } |
-            ForEach-Object { @(${'$'}_.InterfaceIndex, ${'$'}_.DestinationPrefix, ${'$'}_.NextHop, ${'$'}_.RouteMetric) -join '|' }
-    """.trimIndent()).lineSequence().filter(String::isNotBlank).sorted().toList()
+    private fun defaultRoutes() = activeRoutes(setOf("0.0.0.0/0", "::/0"))
 
-    private fun powerShell(command: String): String {
+    private fun activeRoutes(prefixes: Set<String>): List<String> {
+        val selected = prefixes.joinToString(",") { "'$it'" }
+        return powerShell("""
+        Get-NetRoute -PolicyStore ActiveStore |
+            Where-Object { ${'$'}_.DestinationPrefix -in @($selected) } |
+            ForEach-Object { @(${'$'}_.InterfaceIndex, ${'$'}_.DestinationPrefix, ${'$'}_.NextHop, ${'$'}_.RouteMetric) -join '|' }
+        """.trimIndent()).lineSequence().filter(String::isNotBlank).sorted().toList()
+    }
+
+    private fun powerShell(command: String, timeoutSeconds: Long = 15): String {
         val script = "\$ErrorActionPreference = 'Stop'\n$command\nexit 0"
         val encoded = Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
         val process = ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded).start()
         try {
             val output = CompletableFuture.supplyAsync { process.inputStream.bufferedReader().use { it.readText() } }
             val error = CompletableFuture.supplyAsync { process.errorStream.bufferedReader().use { it.readText() } }
-            check(process.waitFor(15, TimeUnit.SECONDS)) { "Windows inspection command timed out." }
+            check(process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) { "Windows inspection command timed out." }
             check(process.exitValue() == 0) { "Windows inspection command failed: ${error.get(2, TimeUnit.SECONDS).trim()}" }
             return output.get(2, TimeUnit.SECONDS).trim()
         } finally {

@@ -145,7 +145,7 @@ internal class DesktopPages(
                 session,
                 ui.spacer(DesktopSpace.sm),
                 ui.section("Connection options"),
-                if (DesktopPlatform.linux) ui.notice("WireGuard and AmneziaWG use the installed Linux tunnel tools.")
+                if (DesktopPlatform.linux) ui.notice("Xray uses the bundled engine. WireGuard and AmneziaWG use installed tunnel tools.")
                 else ui.box(ui.column(
                     ui.toggle("Auto-reconnect", model.autoReconnect) { dispatch(DesktopAction.AutoReconnect(it)) },
                     ui.hairline(),

@@ -115,14 +115,17 @@ jobs:
       - name: Install desktop test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes xvfb xauth wireguard-tools iproute2 iputils-ping
+          sudo apt-get install --yes xvfb xauth wireguard-tools iproute2 iputils-ping nftables
       - name: Build and test the Linux package
         run: xvfb-run -a bash desktop/package-linux.sh
       - name: Verify Linux VPN and DNS integration
         timeout-minutes: 5
         shell: bash
         run: |
-          sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT python3 desktop/src/test/fixtures/linux-network.py
+          mkdir -p "$RUNNER_TEMP/whitegame-tunnel-test"
+          tar -xzf dist/WhiteGame-Linux-x64-*.tar.gz -C "$RUNNER_TEMP/whitegame-tunnel-test" WhiteGame/engines/xray
+          export WHITEGAME_XRAY_CI="$RUNNER_TEMP/whitegame-tunnel-test/WhiteGame/engines/xray/xray"
+          sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT,WHITEGAME_XRAY_CI python3 desktop/src/test/fixtures/linux-network.py
       - uses: actions/upload-artifact@v4
         with:
           name: whitegame-linux-x64
@@ -131,18 +134,26 @@ jobs:
 
   desktop-linux-current:
     name: Linux network integration on Ubuntu 26.04
+    needs: desktop-linux
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: whitegame-linux-x64
+          path: ${{ runner.temp }}/whitegame-linux-package
       - name: Verify Linux VPN and DNS integration
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install --yes wireguard-tools iproute2 iputils-ping
-          sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT python3 desktop/src/test/fixtures/linux-network.py
+          sudo apt-get install --yes wireguard-tools iproute2 iputils-ping nftables
+          mkdir -p "$RUNNER_TEMP/whitegame-tunnel-test"
+          tar -xzf "$RUNNER_TEMP"/whitegame-linux-package/WhiteGame-Linux-x64-*.tar.gz -C "$RUNNER_TEMP/whitegame-tunnel-test" WhiteGame/engines/xray
+          export WHITEGAME_XRAY_CI="$RUNNER_TEMP/whitegame-tunnel-test/WhiteGame/engines/xray/xray"
+          sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT,WHITEGAME_XRAY_CI python3 desktop/src/test/fixtures/linux-network.py
 
   release:
     name: Publish signed Android and tested desktop builds

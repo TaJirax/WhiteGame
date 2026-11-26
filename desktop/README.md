@@ -1,11 +1,11 @@
 # WhiteGame desktop
 
 WhiteGame for Windows targets x64 editions of Windows 10 and 11. Extract
-`WhiteGame-Windows-x64-7.3.1.zip` and open `WhiteGame.exe` from the extracted
+`WhiteGame-Windows-x64-7.3.2.zip` and open `WhiteGame.exe` from the extracted
 folder. The package includes Java, Xray 26.11.9, and Wintun. Keep the folders
 alongside the executable. [Xray release](https://github.com/XTLS/Xray-core/releases/tag/v26.11.9)
 
-On x86-64 Linux, extract `WhiteGame-Linux-x64-7.3.1.tar.gz` and run
+On x86-64 Linux, extract `WhiteGame-Linux-x64-7.3.2.tar.gz` and run
 `WhiteGame/bin/WhiteGame`. The archive includes Java and the Linux Xray binary.
 Settings and profiles are saved under `$XDG_DATA_HOME/whitegame`, with
 `~/.local/share/whitegame` as the default.
@@ -41,16 +41,19 @@ and reports are saved under `%LOCALAPPDATA%\WhiteGame`.
   the previous values if another program has left the override in place.
   Linux network changes require a PolicyKit authentication agent for desktop
   approval. [resolvectl documentation](https://www.freedesktop.org/software/systemd/man/latest/resolvectl.html)
-- Device-wide Xray, WARP profiles with Reserved bytes, and WhiteGame's
-  dedicated kill-switch control are available on Windows. Linux can import
-  and test Xray and WARP profiles in **Network → Configs**.
+- **Connect** starts device-wide Xray using the bundled core and `/dev/net/tun`.
+  Linux needs `iproute2`, `setpriv` from `util-linux`, and a PolicyKit agent.
+  WhiteGame configures tunnel DNS when `systemd-resolved` is active and uses the
+  existing system DNS otherwise. [Xray TUN documentation](https://xtls.github.io/en/config/inbounds/tun.html)
+- WARP profiles with Reserved bytes can be tested in **Network → Configs** on
+  Linux. Device-wide Reserved WARP and WhiteGame's dedicated kill switch are
+  available on Windows.
 
 ## Using the app
 
 - **Connect** selects a saved profile, starts or stops the tunnel, and shows its
-  status and available session statistics. Windows supports device-wide
-  tunneling and IP-based WireGuard split routes. Android package-based routing
-  rules are Android-only.
+  status and available session statistics. Both desktop platforms support
+  system-wide Xray and WireGuard, including WireGuard split routes.
 - **Tunnels** imports config files or pasted links and edits saved profile values, manages subscriptions,
   exports WireGuard-format profiles as files or QR codes, and offers WARP and
   self-hosted enrollment. WireGuard endpoint scans use the selected profile and
@@ -81,7 +84,7 @@ On x64 Windows with JDK 17, run these commands from the repository root.
 On x86-64 Linux with JDK 17, run `bash desktop/package-linux.sh` from the root.
 
 The packaging scripts check the Xray archive's SHA-256 digest and write the
-portable ZIP to `dist\WhiteGame-Windows-x64-7.3.1.zip`. The release workflow
-also builds `dist/WhiteGame-Linux-x64-7.3.1.tar.gz` and publishes both packages
-after the native DNS and WireGuard checks pass on disposable Windows and Linux
-runners. Windows also runs an Xray TUN integration test.
+portable ZIP to `dist\WhiteGame-Windows-x64-7.3.2.zip`. The release workflow
+also builds `dist/WhiteGame-Linux-x64-7.3.2.tar.gz` and publishes both packages
+after the native DNS, WireGuard, and Xray TUN tests pass on disposable Windows
+and Linux runners.

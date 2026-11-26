@@ -78,8 +78,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'The Windows DNS/VPN integration tests failed.' }
     $report = Join-Path $build 'test-results/test/TEST-com.whitegame.desktop.WindowsNetworkIntegrationTest.xml'
     $suite = ([xml](Get-Content -LiteralPath $report -Raw)).testsuite
-    if ($suite.tests -ne '3' -or $suite.skipped -ne '0' -or $suite.failures -ne '0' -or $suite.errors -ne '0') {
-        throw 'Expected all three Windows network checks to run and pass.'
+    if ($suite.tests -ne '4' -or $suite.skipped -ne '0' -or $suite.failures -ne '0' -or $suite.errors -ne '0') {
+        throw 'Expected all four Windows network checks to run and pass.'
     }
 } finally {
     foreach ($key in $keys) { [Environment]::SetEnvironmentVariable($key, $previous[$key], 'Process') }

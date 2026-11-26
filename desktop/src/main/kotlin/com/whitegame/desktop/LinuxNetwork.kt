@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 
 /** Linux networking leases end when the UI closes its pipe or exits. */
 internal class LinuxNetwork : DesktopNetwork {
-    private data class Tunnel(val adapter: String, val name: String, val worker: Process)
+    private data class Tunnel(val adapter: String, val name: String, val worker: Process, val detail: String = "Tunnel running")
 
     private var tunnel: Tunnel? = null
     private var dns: Process? = null
@@ -25,30 +25,55 @@ internal class LinuxNetwork : DesktopNetwork {
 
     @Synchronized
     override fun connect(name: String, text: String, killSwitch: Boolean, autoReconnect: Boolean, preferredDns: List<String>) {
-        require(!XrayConfig.looksLikeXray(text)) { "On Linux, Xray profiles can be tested in Network → Configs. Device-wide Xray is available on Windows." }
+        require(!killSwitch) { "The separate WhiteGame kill switch is available on Windows." }
+        val adapter = "wg" + UUID.randomUUID().toString().replace("-", "").take(10)
+        if (XrayConfig.looksLikeXray(text)) {
+            connectXray(name, text, adapter, preferredDns)
+            return
+        }
         val profile = AwgConfig.parse(text)
         require(profile.peers.none { it.reserved.isNotEmpty() }) { "WARP Reserved profiles can be tested in Network → Configs on Linux." }
         require(profile.iface.includedApplications.isEmpty() && profile.iface.excludedApplications.isEmpty()) {
             "Remove Android app inclusion or exclusion rules before connecting this profile on Linux."
         }
-        require(!killSwitch) { "The separate WhiteGame kill switch is available on Windows." }
         val engine = if (profile.iface.amnezia.isEmpty()) DesktopEngines.wireGuard() else DesktopEngines.amnezia()
         val config = if (preferredDns.isEmpty()) profile else profile.copy(iface = profile.iface.copy(
             dnsServers = preferredDns.map(::numericAddress), dnsSearchDomains = emptyList()
         ))
-        val adapter = "wg" + UUID.randomUUID().toString().replace("-", "").take(10)
         disconnect()
-        val payload = Base64.getEncoder().encodeToString(config.toConfText().toByteArray(Charsets.UTF_8))
         val dnsArguments = config.iface.dnsServers + listOf("--") + config.iface.dnsSearchDomains
-        val worker = startWorker(listOf("tunnel", engine.toString(), adapter) + dnsArguments, payload,
+        val worker = startWorker(listOf("tunnel", engine.toString(), adapter) + dnsArguments, config.toConfText(),
             "Linux could not start the tunnel. Check administrator approval, the tunnel tool, and the profile's DNS settings.")
         tunnel = Tunnel(adapter, name, worker)
+    }
+
+    private fun connectXray(name: String, text: String, adapter: String, preferredDns: List<String>) {
+        val profile = XrayConfig.parse(text)
+        val engine = DesktopEngines.xray()
+        val configureSystemDns = runCatching {
+            commandOutput(listOf(DesktopEngines.linuxExecutable("resolvectl").toString(), "status"))
+        }.isSuccess
+        require(configureSystemDns || preferredDns.isEmpty()) {
+            "Linux needs an active systemd-resolved service to apply a DNS override to Xray."
+        }
+        val ipv6 = listOf("all", "default").all { scope ->
+            runCatching { Files.readString(Path.of("/proc/sys/net/ipv6/conf", scope, "disable_ipv6")).trim() == "0" }
+                .getOrDefault(false)
+        }
+        val config = linuxXrayConfig(profile, adapter, preferredDns.map(::numericAddress), configureSystemDns, ipv6)
+        val args = listOf("xray", engine.toString(), adapter, if (ipv6) "dual" else "ipv4", if (configureSystemDns) "resolved" else "no-dns")
+        disconnect()
+        val worker = startWorker(args, config, "Linux could not start Xray TUN. Check administrator approval, iproute2, setpriv and the Xray profile.")
+        tunnel = Tunnel(adapter, name, worker, if (configureSystemDns) "Xray tunnel running" else "Xray tunnel running · using system DNS")
     }
 
     @Synchronized
     override fun disconnect() {
         val active = tunnel ?: return
-        endWorker(active.worker, "Linux could not finish shutting down the tunnel.")
+        if (active.worker.isAlive) endWorker(active.worker, "Linux could not finish shutting down the tunnel.")
+        check(!Files.exists(Path.of("/sys/class/net", active.adapter))) {
+            "The Linux tunnel interface is still present. Check the system network settings before reconnecting."
+        }
         tunnel = null
     }
 
@@ -57,11 +82,20 @@ internal class LinuxNetwork : DesktopNetwork {
         val active = tunnel ?: return WindowsTunnelStatus(false, null, "Disconnected", phase = "stopped")
         val adapter = Path.of("/sys/class/net", active.adapter)
         val up = active.worker.isAlive && Files.isDirectory(adapter)
+        val recovery = !active.worker.isAlive && Files.exists(adapter)
         return WindowsTunnelStatus(
-            up, active.name, if (up) "Tunnel running" else "The Linux tunnel stopped.",
+            up, active.name, when {
+                up -> active.detail
+                recovery -> "The Linux tunnel stopped with its network interface still present."
+                else -> "The Linux tunnel stopped."
+            },
             rxBytes = counter(adapter, "rx_bytes"),
             txBytes = counter(adapter, "tx_bytes"),
-            phase = if (up) "running" else "failed"
+            phase = when {
+                up -> "running"
+                recovery -> "recovery"
+                else -> "failed"
+            }
         )
     }
 
@@ -108,7 +142,7 @@ internal class LinuxNetwork : DesktopNetwork {
         error("No active default-route network adapter was found.")
     }
 
-    private fun startWorker(args: List<String>, payload: String?, failure: String): Process {
+    private fun startWorker(args: List<String>, config: String?, failure: String): Process {
         val privilege = if (commandOutput(listOf(DesktopEngines.linuxExecutable("id").toString(), "-u")).trim() == "0") {
             emptyList()
         } else {
@@ -116,18 +150,22 @@ internal class LinuxNetwork : DesktopNetwork {
         }
         val process = ProcessBuilder(privilege + listOf("/bin/bash", "-c", workerSource, "whitegame") + args)
             .redirectError(ProcessBuilder.Redirect.DISCARD).start()
+        var helperFailure: String? = null
         try {
-            if (payload != null) {
+            if (config != null) {
+                val payload = Base64.getEncoder().encodeToString(config.toByteArray(Charsets.UTF_8))
                 process.outputStream.write((payload + "\n").toByteArray(Charsets.UTF_8))
                 process.outputStream.flush()
             }
-            val ready = CompletableFuture.supplyAsync { process.inputStream.bufferedReader().use { it.readLine() } }
-            check(ready.get(90, TimeUnit.SECONDS) == "READY") { failure }
+            val line = CompletableFuture.supplyAsync { process.inputStream.bufferedReader().use { it.readLine() } }
+                .get(90, TimeUnit.SECONDS)
+            helperFailure = line?.takeIf { it.startsWith("ERROR ") }?.removePrefix("ERROR ")
+            check(line == "READY") { helperFailure ?: failure }
             return process
         } catch (e: Exception) {
-            process.outputStream.close()
-            if (process.isAlive) process.destroy()
-            throw IOException(failure, e)
+            runCatching { process.outputStream.close() }
+            if (process.isAlive && !process.waitFor(8, TimeUnit.SECONDS)) process.destroy()
+            throw IOException(helperFailure ?: failure, e)
         }
     }
 

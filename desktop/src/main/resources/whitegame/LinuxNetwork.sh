@@ -8,6 +8,90 @@ engine=$2
 target=$3
 shift 3
 
+start_xray_lease() {
+    [[ $target =~ ^wg[0-9a-f]{10}$ && $engine = /* && -x $engine ]] || return 2
+    local family=${1:-dual} system_dns=${2:-no-dns}
+    local payload original_uid=${PKEXEC_UID:-0} original_group attempt status
+    local -a launch=(setpriv --no-new-privs --pdeathsig KILL --bounding-set=-all,+net_admin,+net_raw)
+    fail_xray() { printf 'ERROR %s\n' "$1"; exit 1; }
+    [[ $family == dual || $family == ipv4 ]] || return 2
+    [[ $system_dns == resolved || $system_dns == no-dns ]] || return 2
+    [[ -c /dev/net/tun ]] || fail_xray 'Linux TUN is unavailable. Check that /dev/net/tun is present.'
+    if ip link show dev "$target" >/dev/null 2>&1; then
+        fail_xray 'The Linux Xray interface name is already in use.'
+    fi
+    if [[ -z $(ip -4 -o route show table main default) && -z $(ip -6 -o route show table main default) ]]; then
+        fail_xray 'Xray needs an active Linux default route before starting the tunnel.'
+    fi
+    if [[ $original_uid != 0 ]]; then
+        [[ $original_uid =~ ^[1-9][0-9]*$ ]] || return 2
+        original_group=$(id -g -- "$original_uid")
+        launch+=(--reuid "$original_uid" --regid "$original_group" --init-groups)
+    fi
+    launch+=(--inh-caps=-all,+net_admin,+net_raw --ambient-caps=-all,+net_admin,+net_raw)
+    launch+=(env -u XRAY_TUN_FD -u xray.tun.fd "$engine" run -config stdin: -format json)
+
+    # Xray owns a nonpersistent TUN file descriptor, its routes and per-link DNS.
+    # Closing the descriptor also removes its interface/routes if graceful exit fails.
+    cleanup_xray() {
+        local result=$? attempt
+        trap - EXIT
+        trap '' HUP INT TERM
+        if [[ -n ${xray_pid:-} ]]; then
+            if kill -TERM "$xray_pid" 2>/dev/null; then
+                for ((attempt=0; attempt<50; attempt++)); do
+                    kill -0 "$xray_pid" 2>/dev/null || break
+                    sleep 0.1
+                done
+                kill -KILL "$xray_pid" 2>/dev/null || true
+            fi
+            wait "$xray_pid" || true
+            if ip link show dev "$target" >/dev/null 2>&1; then result=1; fi
+        fi
+        exit "$result"
+    }
+    route_uses_tun() {
+        local route
+        route=$(ip "-$1" -o route get "$2" 2>/dev/null) || return 1
+        [[ " $route " == *" dev $target "* ]]
+    }
+    xray_ready() {
+        local ipv6_addresses
+        route_uses_tun 4 1.0.0.1 && route_uses_tun 4 198.51.100.254 || return 1
+        if [[ $family == dual ]]; then
+            ipv6_addresses=$(ip -6 -o addr show dev "$target" scope global -tentative -dadfailed 2>/dev/null) || return 1
+            [[ -n $ipv6_addresses ]] || return 1
+            route_uses_tun 6 2001:db8::100 && route_uses_tun 6 8000::100 || return 1
+        fi
+        if [[ $system_dns == resolved ]]; then
+            [[ $(timeout 1s resolvectl dns "$target" 2>/dev/null) == *'198.18.0.2'* ]] &&
+                [[ $(timeout 1s resolvectl domain "$target" 2>/dev/null) == *'~.'* ]] || return 1
+        fi
+    }
+
+    IFS= read -r payload || fail_xray 'The Linux Xray config was not received.'
+    xray_pid=
+    trap cleanup_xray EXIT
+    trap 'exit 1' HUP INT TERM
+    printf '%s' "$payload" | base64 --decode | "${launch[@]}" >&2 &
+    xray_pid=$!
+    unset payload
+    for ((attempt=0; attempt<80; attempt++)); do
+        kill -0 "$xray_pid" 2>/dev/null || fail_xray 'Xray stopped before the Linux tunnel was ready. Check the profile, TUN access and resolver settings.'
+        if xray_ready; then
+            printf 'READY\n'
+            while kill -0 "$xray_pid" 2>/dev/null; do
+                if IFS= read -r -t 0.5 _; then break; else status=$?; fi
+                # Bash reports >128 for a timeout, and a smaller status for EOF.
+                (( status > 128 )) || break
+            done
+            exit 0
+        fi
+        sleep 0.1
+    done
+    fail_xray 'The Linux routes or DNS did not switch to the Xray tunnel.'
+}
+
 if [[ $operation == tunnel ]]; then
     [[ $target =~ ^wg[0-9a-f]{10}$ ]] || exit 2
     dns_servers=()
@@ -71,6 +155,8 @@ if [[ $operation == tunnel ]]; then
             "$resolved" -- dns "$target" "${dns_servers[@]}" >&2
         fi
     fi
+elif [[ $operation == xray ]]; then
+    start_xray_lease "$@"
 elif [[ $operation == dns ]]; then
     [[ $target =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,14}$ ]] || exit 2
     current_dns() { "$engine" dns "$target" | sed 's/^[^:]*:[[:space:]]*//'; }
