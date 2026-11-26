@@ -17,7 +17,13 @@ if [[ $operation == tunnel ]]; then
     done
     if (( $# )); then shift; fi
     dns_domains=("$@")
-    workspace=$(mktemp -d /run/whitegame.XXXXXXXX)
+    workspace_root=/run
+    if [[ ${engine##*/} == wg-quick && -d /etc/wireguard ]] &&
+        grep -Fxq 'wg-quick (enforce)' /sys/kernel/security/apparmor/profiles 2>/dev/null; then
+        # The distribution's enforcing policy reads configs only here.
+        workspace_root=/etc/wireguard
+    fi
+    workspace=$(mktemp -d "$workspace_root/whitegame.XXXXXXXX")
     config="$workspace/$target.conf"
     connected=0
     cleanup() {
@@ -44,6 +50,10 @@ if [[ $operation == tunnel ]]; then
     fi
     "$engine" up "$config" >&2
     connected=1
+    if [[ $workspace_root != /run ]]; then
+        # wg-quick down needs the link and routing options, but no key material.
+        sed -i -E '/^(PrivateKey|PresharedKey) = /d' -- "$config"
+    fi
     if [[ -n $resolved ]]; then
         # Wait for systemd-resolved to learn about the new kernel link.
         for ((attempt = 0; attempt < 30; attempt++)); do

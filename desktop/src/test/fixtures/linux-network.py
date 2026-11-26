@@ -79,11 +79,22 @@ class LinuxNetworkIntegration(unittest.TestCase):
         )
         wg_quick = shutil.which("wg-quick")
         self.assertIsNotNone(wg_quick)
+
+        def staged_configs():
+            return [file for directory in (Path("/run"), Path("/etc/wireguard"))
+                    for file in directory.glob(f"whitegame.*/{adapter}.conf")]
+
         with lease("tunnel", wg_quick, adapter, resolver_ip, "--", search_domain, payload=config):
             self.assertIn(resolver_ip, command("resolvectl", "dns", adapter))
             self.assertIn(search_domain, command("resolvectl", "domain", adapter))
             self.assertEqual(command("resolvectl", "default-route", adapter).rpartition(":")[2].strip(), "no")
+            [staged] = staged_configs()
+            self.assertEqual(staged.stat().st_mode & 0o077, 0)
+            self.assertEqual(staged.parent.stat().st_mode & 0o077, 0)
+            if staged.is_relative_to("/etc/wireguard"):
+                self.assertNotIn("PrivateKey = ", staged.read_text())
         self.assertNotIn(adapter, command("ip", "-brief", "link", "show"))
+        self.assertEqual(staged_configs(), [])
 
     def test_wireguard_authenticated_traffic_and_cleanup(self):
         client_namespace, peer_namespace = "wg-desktop-client", "wg-desktop-peer"
