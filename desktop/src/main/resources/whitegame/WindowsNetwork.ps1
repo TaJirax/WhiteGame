@@ -50,16 +50,32 @@ function New-PrivateDirectory {
 }
 
 function Start-Cli($file, $arguments) {
-    $out = Join-Path $private 'cli-output'
-    $err = Join-Path $private 'cli-error'
-    $process = Start-Process -FilePath $file -ArgumentList $arguments -WindowStyle Hidden -PassThru -WorkingDirectory $private -RedirectStandardOutput $out -RedirectStandardError $err
-    if (!$process.WaitForExit(15000)) {
-        $process.Kill()
-        throw 'The Windows tunnel client did not respond.'
-    }
-    if ($process.ExitCode -ne 0) {
-        $operation = ($arguments -split ' ', 2)[0]
-        throw "The Windows tunnel client rejected $operation (exit code $($process.ExitCode))."
+    # Keep the original process handle so fast GUI executables still expose an exit code.
+    $info = [Diagnostics.ProcessStartInfo]::new($file, $arguments)
+    $info.WorkingDirectory = $private
+    $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
+    $info.RedirectStandardOutput = $true
+    $info.RedirectStandardError = $true
+    $process = [Diagnostics.Process]::Start($info)
+    try {
+        $out = $process.StandardOutput.ReadToEndAsync()
+        $err = $process.StandardError.ReadToEndAsync()
+        if (!$process.WaitForExit(15000)) {
+            $process.Kill()
+            throw 'The Windows tunnel client did not respond.'
+        }
+        $code = $process.ExitCode
+        if ($code -ne 0) {
+            $operation = ($arguments -split ' ', 2)[0]
+            $detail = if ($err.Wait(1500)) { $err.Result.Trim() } else { '' }
+            if (!$detail -and $out.Wait(1500)) { $detail = $out.Result.Trim() }
+            $detail = $detail -replace '[A-Za-z0-9+/]{43}=', '[key]'
+            if ($detail.Length -gt 240) { $detail = $detail.Substring(0, 240) }
+            throw "The Windows tunnel client rejected $operation (exit code $code). $detail"
+        }
+    } finally {
+        $process.Dispose()
     }
 }
 
@@ -357,7 +373,10 @@ try {
         try { Write-Status 'stopping' 'Restoring prior Windows network settings…' } catch { }
         try { Stop-Session } catch { $restoreFailure = $_.Exception.Message }
     }
-    if ($restoreFailure) { Write-Status 'recovery' ('Windows could not restore the network settings. ' + $restoreFailure) }
+    if ($restoreFailure) {
+        $detail = if ($failure) { $failure + ' ' } else { '' }
+        Write-Status 'recovery' ($detail + 'Windows could not restore the network settings. ' + $restoreFailure)
+    }
     elseif ($failure) { Write-Status 'failed' $failure }
     else { Write-Status 'stopped' 'Windows network settings restored.' }
 }
