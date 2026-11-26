@@ -8,10 +8,11 @@ import java.awt.KeyboardFocusManager
 import java.awt.Rectangle
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
-import javax.swing.JFrame
 import javax.swing.ImageIcon
 import javax.swing.JComponent
+import javax.swing.JFrame
 import javax.swing.JPanel
+import javax.swing.KeyStroke
 import javax.swing.JScrollPane
 import javax.swing.Scrollable
 import javax.swing.SwingConstants
@@ -30,6 +31,27 @@ internal enum class DesktopNetworkTab(val label: String) {
     DNS("DNS"), CONFIGS("Configs"), GAMES("Games"), SPEED("Speed")
 }
 
+internal class DesktopNavigation {
+    data class Location(val page: DesktopPage, val tab: DesktopNetworkTab, val scrollPosition: Int = 0)
+
+    private val history = ArrayDeque<Location>()
+    var current = Location(DesktopPage.CONNECT, DesktopNetworkTab.DNS)
+        private set
+    val canGoBack get() = history.isNotEmpty()
+
+    fun open(page: DesktopPage, tab: DesktopNetworkTab, scrollPosition: Int): Boolean {
+        if (page == current.page && tab == current.tab) return false
+        history.addLast(current.copy(scrollPosition = scrollPosition))
+        current = Location(page, tab)
+        return true
+    }
+
+    fun goBack(): Boolean {
+        current = history.removeLastOrNull() ?: return false
+        return true
+    }
+}
+
 internal class DesktopDrafts {
     var configs = ""
     var dnsSearch = ""
@@ -44,8 +66,9 @@ internal class DesktopDrafts {
 
 internal class DesktopWindow(private val actions: DesktopActions) : JFrame("WhiteGame") {
     private var state = DesktopState()
-    private var page = DesktopPage.CONNECT
-    private var networkTab = DesktopNetworkTab.DNS
+    private val navigation = DesktopNavigation()
+    private val page get() = navigation.current.page
+    private val networkTab get() = navigation.current.tab
     private val drafts = DesktopDrafts()
     private var visibleHash: List<Any?>? = null
     private var scroll: JScrollPane? = null
@@ -64,6 +87,9 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
             override fun windowClosing(e: WindowEvent) = actions.dispatch(DesktopAction.Close)
             override fun windowClosed(e: WindowEvent) = clock.stop()
         })
+        for (key in listOf("ESCAPE", "alt LEFT")) {
+            rootPane.registerKeyboardAction({ goBack() }, KeyStroke.getKeyStroke(key), JComponent.WHEN_IN_FOCUSED_WINDOW)
+        }
         clock.start()
         refresh()
     }
@@ -78,13 +104,13 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
         refresh()
     }
 
-    private fun refresh(force: Boolean = false, fromTop: Boolean = false) {
+    private fun refresh(force: Boolean = false, scrollPosition: Int? = null) {
         val fingerprint = visibleState()
         if (!force && fingerprint == visibleHash) return
         visibleHash = fingerprint
         val focus = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner as? JTextComponent
         val retainedFocus = focus?.takeIf { SwingUtilities.isDescendingFrom(it, this) }
-        val position = if (fromTop) 0 else scroll?.verticalScrollBar?.value ?: 0
+        val position = scrollPosition ?: scroll?.verticalScrollBar?.value ?: 0
         val activeStyle = DesktopStyle(state.dark)
         uptimeLabel = null
         val ui = DesktopPages(activeStyle, state, drafts, actions::dispatch, this, ::showConfigTest)
@@ -131,7 +157,7 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
             if (scroll !== pane) return@invokeLater
             pane.verticalScrollBar.value = position
             val fieldName = retainedFocus?.name
-            if (!fromTop && fieldName != null) {
+            if (scrollPosition == null && fieldName != null) {
                 val replacement = findNamed(content, fieldName) as? JTextComponent
                 if (replacement != null && replacement.isEnabled) {
                     replacement.requestFocusInWindow()
@@ -158,37 +184,44 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
         }
         val engines = if (page != DesktopPage.CONNECT || state.engineSummary.isBlank()) theme
         else style.split(style.label(state.engineSummary, style.monoSmall, style.trace2), theme)
-        return style.split(text, engines)
+        val controls = if (!navigation.canGoBack) engines else style.split(
+            style.button("Back", action = ::goBack).apply { toolTipText = "Go back (Alt+Left or Esc)" },
+            engines
+        )
+        return style.split(text, controls)
     }
 
-    private fun navigate(destination: DesktopPage) {
-        if (destination == page) return
-        page = destination
-        refresh(force = true, fromTop = true)
+    private fun navigate(destination: DesktopPage, tab: DesktopNetworkTab = networkTab) {
+        val currentScroll = scroll?.verticalScrollBar?.value ?: 0
+        if (navigation.open(destination, tab, currentScroll)) refreshNavigation()
     }
 
     private fun openTab(tab: DesktopNetworkTab) {
-        if (tab == networkTab) return
-        networkTab = tab
-        refresh(force = true, fromTop = true)
+        navigate(DesktopPage.NETWORK, tab)
+    }
+
+    private fun goBack() {
+        if (navigation.goBack()) refreshNavigation()
+    }
+
+    private fun refreshNavigation() {
+        refresh(force = true, scrollPosition = navigation.current.scrollPosition)
     }
 
     private fun showConfigTest(profile: DesktopProfile) {
         drafts.configs = profile.config
-        page = DesktopPage.NETWORK
-        networkTab = DesktopNetworkTab.CONFIGS
-        refresh(force = true, fromTop = true)
+        navigate(DesktopPage.NETWORK, DesktopNetworkTab.CONFIGS)
         actions.dispatch(DesktopAction.TestConfigs(profile.config))
     }
 
     private fun openReport(report: DesktopReport) {
-        networkTab = when (report.kind) {
+        val tab = when (report.kind) {
             DesktopReportKind.DNS -> DesktopNetworkTab.DNS
             DesktopReportKind.CONFIGS -> DesktopNetworkTab.CONFIGS
             DesktopReportKind.GAMES -> DesktopNetworkTab.GAMES
             DesktopReportKind.SPEED -> DesktopNetworkTab.SPEED
         }
-        navigate(DesktopPage.NETWORK)
+        navigate(DesktopPage.NETWORK, tab)
         actions.dispatch(DesktopAction.LoadReport(report.id))
     }
 
@@ -206,7 +239,7 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
             DesktopPage.NETWORK -> listOf(networkTab) + when (networkTab) {
                 DesktopNetworkTab.DNS -> listOf(state.resolvers, state.dns, state.preferredDns)
                 DesktopNetworkTab.CONFIGS -> listOf(state.configTests, state.profiles)
-                DesktopNetworkTab.GAMES -> listOf(state.games, state.gameTests, state.catalogUrl)
+                DesktopNetworkTab.GAMES -> listOf(state.games, state.gamesScanned, state.gameTests, state.catalogUrl)
                 DesktopNetworkTab.SPEED -> listOf(state.speed)
             }
             DesktopPage.DEVICE -> listOf(state.device, state.devicePath, state.engines, state.reports)

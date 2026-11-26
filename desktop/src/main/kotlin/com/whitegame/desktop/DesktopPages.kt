@@ -295,16 +295,23 @@ internal class DesktopPages(
     private fun games(): JComponent {
         val search = ui.field(drafts.gameSearch).apply { name = "game-search" }
         val list = JPanel(BorderLayout()).apply { isOpaque = false }
+        val installedCount = model.games.count(DesktopGame::installed)
         fun updateMatches() {
             val keyword = search.text.trim()
             val matching = model.games.filter { game ->
                 (!drafts.installedOnly || game.installed) &&
-                    (keyword.isEmpty() || game.title.contains(keyword, ignoreCase = true))
+                    (keyword.isEmpty() || game.title.contains(keyword, ignoreCase = true) ||
+                        game.detail.contains(keyword, ignoreCase = true))
             }
             val rows = matching.map(::game)
             list.removeAll()
             list.add(ui.column(*rows.ifEmpty {
-                listOf(ui.notice(if (model.games.isEmpty()) "Scan installed games or update the catalog." else "No matching games."))
+                listOf(ui.notice(when {
+                    drafts.installedOnly && !model.gamesScanned -> "Scan this PC to find installed games."
+                    drafts.installedOnly && installedCount == 0 -> "No installed games were found on this PC."
+                    model.games.isEmpty() -> "Scan this PC or update the game catalog."
+                    else -> "No games match your search."
+                }))
             }.toTypedArray()), BorderLayout.NORTH)
             list.revalidate()
             list.repaint()
@@ -322,8 +329,11 @@ internal class DesktopPages(
         val browser = ui.column(
             ui.section("Games", "Discover installed titles and compare server latency"),
             ui.grid(
-                ui.button("Scan installed games", primary = true, enabled = idle) { dispatch(DesktopAction.DiscoverGames) },
-                ui.toggle("Installed only", drafts.installedOnly) {
+                ui.button("Scan for games", primary = true, enabled = idle) {
+                    drafts.installedOnly = true
+                    dispatch(DesktopAction.DiscoverGames)
+                },
+                ui.toggle(if (model.gamesScanned) "Installed only ($installedCount)" else "Installed only", drafts.installedOnly) {
                     drafts.installedOnly = it
                     updateMatches()
                 }
@@ -349,10 +359,10 @@ internal class DesktopPages(
         val group = ui.column(
             ui.split(ui.label(game.title, ui.subtitle), ui.legend(if (game.installed) "Installed" else "Catalog")),
             *listOfNotNull(game.detail.takeIf(String::isNotBlank)?.let { ui.paragraph(it, rows = 1) }).toTypedArray(),
-            ui.grid(
-                ui.button("Test latency", enabled = idle && game.canTest) { dispatch(DesktopAction.TestGame(game.id)) },
-                ui.button("Compare routes", enabled = idle && game.canTest) { dispatch(DesktopAction.CompareGame(game.id)) }
-            )
+            if (game.canTest) ui.grid(
+                ui.button("Test latency", enabled = idle) { dispatch(DesktopAction.TestGame(game.id)) },
+                ui.button("Compare routes", enabled = idle) { dispatch(DesktopAction.CompareGame(game.id)) }
+            ) else ui.label("No catalog test endpoint", ui.small, ui.trace2)
         )
         return ui.box(group)
     }
@@ -362,7 +372,9 @@ internal class DesktopPages(
             ui.section("PC and network"),
             ui.button("Run device scan", primary = true, enabled = idle) { dispatch(DesktopAction.InspectDevice) },
             if (model.device.isEmpty()) ui.notice("Inspect this PC to see its network and hardware details.") else ui.table(model.device),
-            *model.devicePath.takeIf { it.isNotEmpty() }?.let { arrayOf(ui.section("Network path"), ui.table(it)) }.orEmpty(),
+            ui.spacer(DesktopSpace.sm),
+            ui.section("Network path"),
+            if (model.devicePath.isEmpty()) ui.notice("Run the device scan to measure the current connection.") else ui.table(model.devicePath),
             ui.spacer(DesktopSpace.sm),
             ui.section("Engines"),
             if (model.engines.isEmpty()) ui.notice("Inspect this PC to check available tunnel engines.") else ui.table(model.engines)

@@ -125,6 +125,7 @@ internal data class DesktopState(
     val dns: List<DesktopMeasurement> = emptyList(),
     val configTests: List<DesktopMeasurement> = emptyList(),
     val games: List<DesktopGame> = emptyList(),
+    val gamesScanned: Boolean = false,
     val gameTests: List<DesktopMeasurement> = emptyList(),
     val speed: DesktopMeasurement? = null,
     val endpointTests: List<DesktopMeasurement> = emptyList(),

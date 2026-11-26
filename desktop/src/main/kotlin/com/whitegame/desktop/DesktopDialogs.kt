@@ -6,6 +6,7 @@ import com.whitegame.app.connection.ConfigException
 import com.whitegame.app.connection.Keys
 import com.whitegame.app.connection.encodeTunnelQr
 import com.whitegame.app.connection.tunnelConfigFileName
+import java.awt.BorderLayout
 import java.awt.Desktop
 import java.awt.Dialog
 import java.awt.Dimension
@@ -23,6 +24,8 @@ import javax.swing.JFileChooser
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.KeyStroke
+import javax.swing.JPanel
+import javax.swing.ScrollPaneConstants
 import javax.swing.SwingWorker
 import javax.swing.border.EmptyBorder
 import javax.swing.filechooser.FileNameExtensionFilter
@@ -251,36 +254,43 @@ internal class DesktopDialogs(
         }
         val error = submit?.let { style.paragraph("", rows = 2, foreground = style.trace) }
         var submitting = false
-        val accept = style.button(actionLabel ?: "Close", primary = true) {
-            if (submitting) return@button
-            fun complete(message: String?) {
-                submitting = false
-                if (message == null) {
-                    accepted = true
-                    dialog.dispose()
+        val accept = actionLabel?.let { label ->
+            style.button(label, primary = true) {
+                if (submitting) return@button
+                fun complete(message: String?) {
+                    submitting = false
+                    if (message == null) {
+                        accepted = true
+                        dialog.dispose()
+                    } else {
+                        error?.text = message
+                        error?.caretPosition = 0
+                    }
+                }
+                if (submit == null) {
+                    complete(null)
                 } else {
-                    error?.text = message
-                    error?.caretPosition = 0
+                    submitting = true
+                    submit(::complete)
                 }
             }
-            if (submit == null) complete(null) else {
-                submitting = true
-                submit(::complete)
+        }
+        val back = style.button("Back", action = dialog::dispose).apply { toolTipText = "Go back (Esc)" }
+        val header = style.split(style.label(title, style.title), back)
+        val scroll = style.scroll(body).apply {
+            horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
+        }
+        dialog.contentPane = JPanel(BorderLayout(0, DesktopSpace.md)).apply {
+            background = style.ink
+            border = EmptyBorder(DesktopSpace.xl, DesktopSpace.xl, DesktopSpace.xl, DesktopSpace.xl)
+            add(header, BorderLayout.NORTH)
+            add(scroll, BorderLayout.CENTER)
+            if (accept != null) {
+                val action = style.split(style.spacer(1), accept)
+                add(if (error == null) action else style.column(error, action), BorderLayout.SOUTH)
             }
         }
-        val footer = if (actionLabel == null) accept else style.grid(
-            style.button("Cancel") { dialog.dispose() },
-            accept
-        )
-        dialog.contentPane = style.column(
-            *listOfNotNull(style.label(title, style.title), body, error, footer).toTypedArray(),
-            gap = DesktopSpace.md
-        ).apply {
-            background = style.ink
-            isOpaque = true
-            border = EmptyBorder(DesktopSpace.xl, DesktopSpace.xl, DesktopSpace.xl, DesktopSpace.xl)
-        }
-        dialog.rootPane.defaultButton = accept
+        dialog.rootPane.defaultButton = accept ?: back
         dialog.rootPane.registerKeyboardAction(
             { dialog.dispose() },
             KeyStroke.getKeyStroke("ESCAPE"),
@@ -288,6 +298,14 @@ internal class DesktopDialogs(
         )
         dialog.defaultCloseOperation = JDialog.DISPOSE_ON_CLOSE
         dialog.pack()
+        val screen = parent.graphicsConfiguration
+        val insets = Toolkit.getDefaultToolkit().getScreenInsets(screen)
+        val availableWidth = screen.bounds.width - insets.left - insets.right - DesktopSpace.edge * 2
+        val availableHeight = screen.bounds.height - insets.top - insets.bottom - DesktopSpace.edge * 2
+        dialog.setSize(
+            minOf(dialog.width, availableWidth.coerceAtLeast(1)),
+            minOf(dialog.height, availableHeight.coerceAtLeast(1))
+        )
         dialog.setLocationRelativeTo(parent)
         currentDialog = dialog
         try {

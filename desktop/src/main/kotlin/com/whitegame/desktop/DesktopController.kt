@@ -45,7 +45,7 @@ internal class DesktopController(
     private var subscriptions = emptyList<SubNode>()
     private var endpointProfile: DesktopProfile? = null
     private var catalog = emptyList<WindowsGame>()
-    private var installed = emptySet<String>()
+    private var installed: List<InstalledDesktopGame>? = null
     private val bundledResolvers = desktopDnsCatalog(WindowsCatalog.resolvers())
     private var state = DesktopState(
         dark = store.flag("dark", true),
@@ -62,11 +62,10 @@ internal class DesktopController(
     fun show() {
         update { copy(selectedId = profiles.firstOrNull { it.id == store.string("selectedId") }?.id ?: profiles.firstOrNull()?.id) }
         window.isVisible = true
-        run("Reading game catalog…") {
+        run("Reading device information…") {
             refreshSession()
-            catalog = withContext(Dispatchers.IO) { WindowsCatalog.games(store.directory) }
-            discoverGames()
             inspect(samplePath = false)
+            discoverGames()
         }
         scope.launch {
             while (true) {
@@ -145,7 +144,7 @@ internal class DesktopController(
                 is DesktopAction.SaveDnsResolver -> saveDnsResolver(action)
                 is DesktopAction.DeleteDnsResolver -> deleteDnsResolver(action.id)
                 is DesktopAction.ApplyDns -> run("Applying system DNS…", networkChange = true) { applyDns(action.address) }
-                DesktopAction.DiscoverGames -> run("Finding installed games…") { discoverGames() }
+                DesktopAction.DiscoverGames -> run("Scanning this PC for games…") { discoverGames() }
                 is DesktopAction.TestGame -> run("Measuring game HTTPS…") { testGame(action.id, false) }
                 is DesktopAction.CompareGame -> run("Measuring game routes…") { testGame(action.id, true) }
                 is DesktopAction.UpdateCatalog -> run("Updating game catalog…") {
@@ -428,14 +427,18 @@ internal class DesktopController(
     }
 
     private suspend fun discoverGames() {
+        if (catalog.isEmpty()) {
+            progress("Reading game catalog…")
+            catalog = withContext(Dispatchers.IO) { WindowsCatalog.games(store.directory) }
+            presentGames()
+        }
+        progress("Scanning this PC for games…")
         installed = withContext(Dispatchers.IO) { WindowsCatalog.installedGames() }
         presentGames()
     }
 
     private fun presentGames() = update {
-        copy(games = catalog.map { game ->
-            DesktopGame(game.id, game.title, game.category, game.id in installed, game.hosts.isNotEmpty())
-        }.sortedWith(compareByDescending<DesktopGame> { it.installed }.thenBy { it.title.lowercase() }))
+        copy(games = WindowsCatalog.presentGames(catalog, installed.orEmpty()), gamesScanned = installed != null)
     }
 
     private suspend fun testGame(id: String, compare: Boolean) {
@@ -530,10 +533,20 @@ internal class DesktopController(
     }
 
     private suspend fun inspect(samplePath: Boolean) {
-        val device = withContext(Dispatchers.IO) { WindowsCatalog.device() }
-        val engines = listOf("WireGuard" to DesktopEngines::wireGuard, "AmneziaWG" to DesktopEngines::amnezia, "Xray" to DesktopEngines::xray)
-            .map { (name, resolve) -> DesktopField(name, runCatching { resolve().toString() }.getOrElse { it.message ?: "Unavailable" }) }
-        update { copy(device = device, engines = engines, engineSummary = "WireGuard | AmneziaWG | Xray") }
+        val (device, engines) = withContext(Dispatchers.IO) {
+            val tools = listOf(
+                "WireGuard" to DesktopEngines::wireGuard,
+                "AmneziaWG" to DesktopEngines::amnezia,
+                "Xray" to DesktopEngines::xray
+            ).map { (name, resolve) ->
+                DesktopField(name, runCatching { resolve().toString() }.getOrElse { it.message ?: "Unavailable" })
+            }
+            WindowsCatalog.device() to tools
+        }
+        update {
+            copy(device = device, engines = engines, engineSummary = "WireGuard | AmneziaWG | Xray",
+                devicePath = if (samplePath) emptyList() else devicePath)
+        }
         if (samplePath) {
             progress("Sampling the current network path…")
             val route = samplePath()
@@ -542,7 +555,7 @@ internal class DesktopController(
                 DesktopField("Average connection", route.latencyMs?.let { "%.1f ms".format(it) } ?: "—"),
                 DesktopField("Failed attempts", route.lossPercent?.let { "%.0f%%".format(it) } ?: "—"),
                 DesktopField("Targets", "Cloudflare, Google and Quad9")
-            )) }
+            ), notice = "Device scan complete.") }
         }
     }
 
