@@ -6,9 +6,11 @@ import java.awt.GraphicsEnvironment
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.swing.JButton
+import javax.swing.JLabel
+import javax.swing.JList
 import javax.swing.JScrollPane
-import javax.swing.SwingUtilities
 import javax.swing.JTextArea
+import javax.swing.SwingUtilities
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
@@ -87,6 +89,43 @@ class DesktopWindowRenderTest {
             }
         }
         assertTrue(closed.await(10, TimeUnit.SECONDS))
+    }
+
+    @Test
+    fun dnsResultsShowFailuresAndKeepExtraResolversSelectable() {
+        assumeFalse(GraphicsEnvironment.isHeadless())
+        val actions = mutableListOf<DesktopAction>()
+        val state = DesktopState(
+            resolvers = listOf(DesktopDnsResolver("catalog", "Example catalog resolver", "192.0.2.10")),
+            dns = listOf(
+                DesktopMeasurement("192.0.2.11", "Example extra resolver", "192.0.2.11", latencyMs = 12.0),
+                DesktopMeasurement("192.0.2.10", "Example catalog resolver", "192.0.2.10", lossPercent = 100.0)
+            )
+        )
+        lateinit var window: DesktopWindow
+        SwingUtilities.invokeAndWait {
+            window = DesktopWindow { actions.add(it) }
+        }
+        try {
+            SwingUtilities.invokeAndWait {
+                window.isVisible = true
+                window.button("Network").doClick(0)
+                window.render(state)
+            }
+            SwingUtilities.invokeAndWait {
+                val labels = window.contentPane.descendants().filterIsInstance<JLabel>().map { it.text }.toList()
+                assertTrue(labels.any { it.contains("2 tested") && it.contains("1 no response") })
+                val list = window.contentPane.descendants().filterIsInstance<JList<*>>().single()
+                assertEquals(2, list.model.size)
+                list.selectedIndex = 0
+                window.button("Test resolver").doClick(0)
+                assertEquals(DesktopAction.TestDns(resolverId = "report-192.0.2.11"), actions.single())
+                list.selectedIndex = 1
+                assertTrue(window.contentPane.descendants().filterIsInstance<JLabel>().any { it.text == "No response" })
+            }
+        } finally {
+            SwingUtilities.invokeAndWait { window.dispose() }
+        }
     }
 
     private fun DesktopWindow.button(name: String) = contentPane.descendants().filterIsInstance<JButton>()

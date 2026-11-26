@@ -394,7 +394,8 @@ internal class DesktopPages(
 
     private fun game(game: DesktopGame): JComponent {
         val group = ui.column(
-            ui.split(ui.resultText(game.title, ui.subtitle, ui.trace), ui.legend(if (game.installed) "Installed" else "Catalog")),
+            ui.legend(if (game.installed) "Installed" else "Catalog"),
+            ui.resultText(game.title, ui.subtitle, ui.trace),
             *listOfNotNull(game.detail.takeIf(String::isNotBlank)?.let { ui.resultText(it) }).toTypedArray(),
             if (game.canTest) ui.grid(
                 ui.button("Test latency", enabled = idle) { dispatch(DesktopAction.TestGame(game.id)) },
