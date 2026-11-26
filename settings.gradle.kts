@@ -1,12 +1,19 @@
 pluginManagement {
     repositories {
-        // dl.google.com answers 404 for several Jetpack artifacts on this network, so the
-        // mirror of Google Maven is tried first and google() stays as the fallback.
-        maven("https://maven.aliyun.com/repository/google")
-        maven("https://maven.aliyun.com/repository/gradle-plugin")
-        google()
+        // Resolve shared plugin dependencies from Central and keep the Google mirror
+        // limited to Google's Android tooling and Jetpack artifacts.
         mavenCentral()
+        maven("https://maven.aliyun.com/repository/google") {
+            content {
+                includeGroupByRegex("androidx\\..*")
+                includeGroupByRegex("com\\.android(\\..*)?")
+                includeGroup("com.google.android.material")
+                includeGroup("com.google.testing.platform")
+            }
+        }
+        google()
         gradlePluginPortal()
+        maven("https://maven.aliyun.com/repository/gradle-plugin")
     }
 }
 dependencyResolutionManagement {
