@@ -15,6 +15,11 @@ internal data class DesktopDnsResolver(
     val addressKey: String = normalizedDnsAddress(address) ?: address
 }
 
+internal fun DesktopMeasurement.savedDnsResolver(): DesktopDnsResolver? {
+    val ip = normalizedDnsAddress(endpoint) ?: return null
+    return DesktopDnsResolver("report-$ip", name, endpoint, detail)
+}
+
 internal fun normalizedDnsAddress(input: String): String? {
     val address = input.trim()
     if (':' in address) {

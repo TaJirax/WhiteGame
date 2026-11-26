@@ -13,7 +13,6 @@ import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.KeyStroke
-import javax.swing.JScrollPane
 import javax.swing.Scrollable
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
@@ -57,10 +56,12 @@ internal class DesktopDrafts {
     var dnsSearch = ""
     var extraResolverIps = ""
     var dnsResolverId: String? = null
+    var dnsResultsOnly = false
     var endpoints = ""
     var subscription: String? = null
     var catalog: String? = null
     var gameSearch = ""
+    var gameScrollPosition = 0
     var installedOnly = false
 }
 
@@ -70,11 +71,18 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
     private val page get() = navigation.current.page
     private val networkTab get() = navigation.current.tab
     private val drafts = DesktopDrafts()
-    private var visibleHash: List<Any?>? = null
-    private var scroll: JScrollPane? = null
+    private var view = WindowView(DesktopStyle(state.dark), ::stop)
+    private var bodyState: List<Any?>? = null
+    private var headerState: List<Any?>? = null
+    private var tabState: Pair<DesktopPage, DesktopNetworkTab>? = null
+    private var refreshPending = false
     private var uptimeLabel: javax.swing.JLabel? = null
+    private var sessionView: ((DesktopState) -> Unit)? = null
     private val clock = Timer(1000) {
-        uptimeLabel?.text = uptime(state.connectionSince)
+        uptimeLabel?.let { label ->
+            val time = uptime(state.connectionSince)
+            if (label.text != time) label.text = time
+        }
     }
 
     init {
@@ -90,6 +98,7 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
         for (key in listOf("ESCAPE", "alt LEFT")) {
             rootPane.registerKeyboardAction({ goBack() }, KeyStroke.getKeyStroke(key), JComponent.WHEN_IN_FOCUSED_WINDOW)
         }
+        contentPane = view.shell
         clock.start()
         refresh()
     }
@@ -101,71 +110,91 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
             return
         }
         state = update
-        refresh()
+        if (!refreshPending) {
+            refreshPending = true
+            SwingUtilities.invokeLater {
+                refreshPending = false
+                refresh()
+            }
+        }
     }
 
-    private fun refresh(force: Boolean = false, scrollPosition: Int? = null) {
-        val fingerprint = visibleState()
-        if (!force && fingerprint == visibleHash) return
-        visibleHash = fingerprint
-        val focus = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner as? JTextComponent
-        val retainedFocus = focus?.takeIf { SwingUtilities.isDescendingFrom(it, this) }
-        val position = scrollPosition ?: scroll?.verticalScrollBar?.value ?: 0
-        val activeStyle = DesktopStyle(state.dark)
-        uptimeLabel = null
-        val ui = DesktopPages(activeStyle, state, drafts, actions::dispatch, this, ::showConfigTest)
-        val body = when (page) {
-            DesktopPage.CONNECT -> ui.connect(openTunnels = { navigate(DesktopPage.TUNNELS) }) { uptimeLabel = it }
-            DesktopPage.TUNNELS -> ui.tunnels()
-            DesktopPage.NETWORK -> ui.network(networkTab, ::openTab)
-            DesktopPage.DEVICE -> ui.device(::openReport)
-        }
-        val shell = JPanel(BorderLayout()).apply { background = activeStyle.ink }
-        val header = activeStyle.column(
-            header(activeStyle),
-            activeStyle.hairline(),
-            gap = DesktopSpace.md
-        ).apply { border = EmptyBorder(DesktopSpace.edge, DesktopSpace.edge, DesktopSpace.sm, DesktopSpace.edge) }
-        shell.add(header, BorderLayout.NORTH)
+    private fun refresh(scrollPosition: Int? = null) {
+        val body = visibleState()
+        val headerKey = listOf(page, navigation.canGoBack, state.engineSummary.takeIf { page == DesktopPage.CONNECT })
+        val tabs = page to networkTab
+        val paletteChanged = view.style.dark != state.dark
+        val replaceBody = paletteChanged || bodyState != body
+        val rebuildChrome = paletteChanged || headerState != headerKey || tabState != tabs
+        val oldPosition = scrollPosition ?: view.pane.verticalScrollBar.value
+        val focus = if (replaceBody && scrollPosition == null) focusedEditor() else null
 
-        val content = ScreenContent().apply {
-            isOpaque = false
-            border = EmptyBorder(DesktopSpace.sm, DesktopSpace.edge, DesktopSpace.xl, DesktopSpace.edge)
-            add(activeStyle.column(*listOfNotNull(
-                state.busy?.let { status ->
-                    activeStyle.box(activeStyle.split(
-                        activeStyle.column(activeStyle.legend("Working"), activeStyle.paragraph(status, rows = 1)),
-                        activeStyle.button("Stop") { actions.dispatch(DesktopAction.Stop) }
-                    ))
-                },
-                state.notice.takeIf(String::isNotBlank)?.let { activeStyle.notice(it) },
-                body
-            ).toTypedArray(), gap = DesktopSpace.md), BorderLayout.NORTH)
+        if (paletteChanged) {
+            view = WindowView(DesktopStyle(state.dark), ::stop)
+            contentPane = view.shell
         }
-        val pane = activeStyle.scroll(content)
-        scroll = pane
-        shell.add(pane, BorderLayout.CENTER)
-        val tabs = DesktopPage.entries.map { destination ->
-            activeStyle.tab(destination.label, destination.icon, page == destination) { navigate(destination) }
+        val style = view.style
+        if (paletteChanged || headerState != headerKey) {
+            view.header.replace(style.column(header(style), style.hairline(), gap = DesktopSpace.md))
+            headerState = headerKey
         }
-        val nav = activeStyle.column(activeStyle.hairline(), activeStyle.grid(*tabs.toTypedArray()), gap = 0)
-        shell.add(nav, BorderLayout.SOUTH)
-        contentPane = shell
-        revalidate()
-        repaint()
-        SwingUtilities.invokeLater {
-            if (scroll !== pane) return@invokeLater
-            pane.verticalScrollBar.value = position
-            val fieldName = retainedFocus?.name
-            if (scrollPosition == null && fieldName != null) {
-                val replacement = findNamed(content, fieldName) as? JTextComponent
-                if (replacement != null && replacement.isEnabled) {
+        if (paletteChanged || tabState != tabs) {
+            val mainTabs = DesktopPage.entries.map { destination ->
+                style.tab(destination.label, destination.icon, page == destination) { navigate(destination) }
+            }
+            view.navigation.replace(style.column(style.hairline(), style.grid(*mainTabs.toTypedArray()), gap = 0))
+            view.networkTabs.isVisible = page == DesktopPage.NETWORK
+            if (view.networkTabs.isVisible) {
+                val sections = DesktopNetworkTab.entries.map { section ->
+                    style.tab(section.label, "", networkTab == section) { navigate(DesktopPage.NETWORK, section) }
+                }
+                view.networkTabs.replace(style.box(style.grid(*sections.toTypedArray()), padded = false))
+            }
+            tabState = tabs
+        }
+        if (replaceBody) {
+            uptimeLabel = null
+            sessionView = null
+            val pages = DesktopPages(style, state, drafts, actions::dispatch, this, ::showConfigTest)
+            view.content.replace(when (page) {
+                DesktopPage.CONNECT -> pages.connect(
+                    openTunnels = { navigate(DesktopPage.TUNNELS) },
+                    observeUptime = { uptimeLabel = it },
+                    observeSession = { sessionView = it }
+                )
+                DesktopPage.TUNNELS -> pages.tunnels()
+                DesktopPage.NETWORK -> pages.network(networkTab)
+                DesktopPage.DEVICE -> pages.device(::openReport)
+            }, BorderLayout.NORTH)
+            bodyState = body
+        } else {
+            sessionView?.invoke(state)
+        }
+        val feedbackChanged = view.showFeedback(state.busy, state.notice)
+        if (replaceBody || rebuildChrome || feedbackChanged || scrollPosition != null) {
+            validate()
+            if (view.pane.verticalScrollBar.value != oldPosition) view.pane.verticalScrollBar.value = oldPosition
+            focus?.let { selection ->
+                val replacement = findNamed(view.content, selection.name) as? JTextComponent
+                if (replacement?.isEnabled == true) {
                     replacement.requestFocusInWindow()
-                    replacement.caretPosition = retainedFocus.caretPosition.coerceAtMost(replacement.document.length)
+                    replacement.caret.setDot(selection.mark.coerceAtMost(replacement.document.length))
+                    replacement.caret.moveDot(selection.dot.coerceAtMost(replacement.document.length))
                 }
             }
         }
     }
+
+    private data class EditorSelection(val name: String, val dot: Int, val mark: Int)
+
+    private fun focusedEditor(): EditorSelection? {
+        val field = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner as? JTextComponent
+        val name = field?.name ?: return null
+        if (!SwingUtilities.isDescendingFrom(field, view.content)) return null
+        return EditorSelection(name, field.caret.dot, field.caret.mark)
+    }
+
+    private fun stop() = actions.dispatch(DesktopAction.Stop)
 
     private fun header(style: DesktopStyle): JComponent {
         val (title, subtitle) = when (page) {
@@ -192,12 +221,8 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
     }
 
     private fun navigate(destination: DesktopPage, tab: DesktopNetworkTab = networkTab) {
-        val currentScroll = scroll?.verticalScrollBar?.value ?: 0
+        val currentScroll = view.pane.verticalScrollBar.value
         if (navigation.open(destination, tab, currentScroll)) refreshNavigation()
-    }
-
-    private fun openTab(tab: DesktopNetworkTab) {
-        navigate(DesktopPage.NETWORK, tab)
     }
 
     private fun goBack() {
@@ -205,7 +230,7 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
     }
 
     private fun refreshNavigation() {
-        refresh(force = true, scrollPosition = navigation.current.scrollPosition)
+        refresh(scrollPosition = navigation.current.scrollPosition)
     }
 
     private fun showConfigTest(profile: DesktopProfile) {
@@ -216,7 +241,11 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
 
     private fun openReport(report: DesktopReport) {
         val tab = when (report.kind) {
-            DesktopReportKind.DNS -> DesktopNetworkTab.DNS
+            DesktopReportKind.DNS -> {
+                drafts.dnsSearch = ""
+                drafts.dnsResultsOnly = true
+                DesktopNetworkTab.DNS
+            }
             DesktopReportKind.CONFIGS -> DesktopNetworkTab.CONFIGS
             DesktopReportKind.GAMES -> DesktopNetworkTab.GAMES
             DesktopReportKind.SPEED -> DesktopNetworkTab.SPEED
@@ -226,19 +255,20 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
     }
 
     private fun visibleState(): List<Any?> {
-        val shared = listOf(page, state.dark, state.notice, state.busy, state.phase)
+        val shared = listOf(page, state.busy != null)
         return shared + when (page) {
             DesktopPage.CONNECT -> listOf(
-                state.profiles, state.selectedId, state.activeId, state.connectionMessage, state.connectionSince,
-                state.latencyHistory, state.session, state.engineSummary, state.preferredDns, state.autoReconnect, state.killSwitch,
+                state.profiles, state.selectedId, state.activeId, state.phase, state.connectionMessage,
+                state.preferredDns, state.autoReconnect, state.killSwitch,
                 state.recoveryRequired, state.optimizer, state.suggestedDns
             )
             DesktopPage.TUNNELS -> listOf(
-                state.profiles, state.selectedId, state.endpointTests, state.subscription, state.subscriptionUrl
+                state.profiles, state.selectedId, state.activeId, state.phase, state.endpointTests,
+                state.subscription, state.subscriptionUrl
             )
             DesktopPage.NETWORK -> listOf(networkTab) + when (networkTab) {
                 DesktopNetworkTab.DNS -> listOf(state.resolvers, state.dns, state.preferredDns)
-                DesktopNetworkTab.CONFIGS -> listOf(state.configTests, state.profiles)
+                DesktopNetworkTab.CONFIGS -> listOf(state.configTests, state.profiles, state.phase)
                 DesktopNetworkTab.GAMES -> listOf(state.games, state.gamesScanned, state.gameTests, state.catalogUrl)
                 DesktopNetworkTab.SPEED -> listOf(state.speed)
             }
@@ -251,15 +281,71 @@ internal class DesktopWindow(private val actions: DesktopActions) : JFrame("Whit
         return (root as? Container)?.components?.firstNotNullOfOrNull { findNamed(it, id) }
     }
 
-    private class ScreenContent : JPanel(BorderLayout()), Scrollable {
-        override fun getPreferredScrollableViewportSize() = preferredSize
-        override fun getScrollableTracksViewportWidth() = true
-        override fun getScrollableTracksViewportHeight() = false
-        override fun getScrollableUnitIncrement(visibleRect: Rectangle, orientation: Int, direction: Int) =
-            DesktopSpace.xl
-        override fun getScrollableBlockIncrement(visibleRect: Rectangle, orientation: Int, direction: Int) =
-            if (orientation == SwingConstants.VERTICAL) visibleRect.height - DesktopSpace.xl else visibleRect.width
+    private class WindowView(val style: DesktopStyle, onStop: () -> Unit) {
+        val header = slot().apply { border = EmptyBorder(DesktopSpace.edge, DesktopSpace.edge, DesktopSpace.sm, DesktopSpace.edge) }
+        val networkTabs = slot().apply { border = EmptyBorder(0, DesktopSpace.edge, DesktopSpace.sm, DesktopSpace.edge) }
+        val navigation = slot()
+        val content = DesktopScrollContent().apply {
+            isOpaque = false
+            border = EmptyBorder(DesktopSpace.sm, DesktopSpace.edge, DesktopSpace.xl, DesktopSpace.edge)
+        }
+        val pane = style.scroll(content)
+        private val message = style.paragraph("", rows = 2, foreground = style.trace)
+        private val stop = style.button("Stop", action = onStop)
+        private val feedback = slot().apply {
+            isVisible = false
+            border = EmptyBorder(0, DesktopSpace.edge, DesktopSpace.sm, DesktopSpace.edge)
+            add(style.box(style.split(message, stop).apply {
+                border = EmptyBorder(DesktopSpace.xs, DesktopSpace.md, DesktopSpace.xs, DesktopSpace.xs)
+            }, padded = false), BorderLayout.CENTER)
+        }
+        val shell = JPanel(BorderLayout()).apply {
+            background = style.ink
+            add(slot().apply {
+                add(header, BorderLayout.NORTH)
+                add(networkTabs, BorderLayout.CENTER)
+            }, BorderLayout.NORTH)
+            add(pane, BorderLayout.CENTER)
+            add(slot().apply {
+                add(feedback, BorderLayout.NORTH)
+                add(navigation, BorderLayout.CENTER)
+            }, BorderLayout.SOUTH)
+        }
+
+        fun showFeedback(busy: String?, notice: String): Boolean {
+            val text = listOfNotNull(busy, notice.takeIf(String::isNotBlank)).joinToString("\n")
+            val visible = text.isNotBlank()
+            val stoppable = busy != null
+            val layoutChanged = feedback.isVisible != visible || stop.isVisible != stoppable
+            if (message.text != text) {
+                message.text = text
+                message.toolTipText = text.takeIf(String::isNotBlank)
+            }
+            feedback.isVisible = visible
+            stop.isVisible = stoppable
+            return layoutChanged
+        }
+
+        private fun slot() = JPanel(BorderLayout()).apply { isOpaque = false }
     }
+
+}
+
+internal class DesktopScrollContent : JPanel(BorderLayout()), Scrollable {
+    override fun getPreferredScrollableViewportSize() = preferredSize
+    override fun getScrollableTracksViewportWidth() = true
+    override fun getScrollableTracksViewportHeight() = false
+    override fun getScrollableUnitIncrement(visibleRect: Rectangle, orientation: Int, direction: Int) = DesktopSpace.xl
+    override fun getScrollableBlockIncrement(visibleRect: Rectangle, orientation: Int, direction: Int) =
+        if (orientation == SwingConstants.VERTICAL) (visibleRect.height - DesktopSpace.xl).coerceAtLeast(DesktopSpace.xl)
+        else visibleRect.width
+}
+
+private fun JPanel.replace(value: JComponent, position: String = BorderLayout.CENTER) {
+    removeAll()
+    add(value, position)
+    revalidate()
+    repaint()
 }
 
 internal fun uptime(connectedSince: Long?): String {

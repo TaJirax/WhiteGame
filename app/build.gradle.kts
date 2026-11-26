@@ -33,8 +33,8 @@ android {
         // phones just say "problem parsing the package".
         minSdk = 23
         targetSdk = 34
-        versionCode = 46
-        versionName = "7.3.0"
+        versionCode = 47
+        versionName = "7.3.1"
         vectorDrawables { useSupportLibrary = true }
         // AGP rejects abiFilters and split filters together, so only one of them applies.
         ndk {

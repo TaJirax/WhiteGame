@@ -112,14 +112,16 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
+      - name: Install desktop test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes xvfb xauth wireguard-tools iproute2 iputils-ping
       - name: Build and test the Linux package
-        run: bash desktop/package-linux.sh
+        run: xvfb-run -a bash desktop/package-linux.sh
       - name: Verify Linux VPN and DNS integration
         timeout-minutes: 5
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes wireguard-tools iproute2 iputils-ping
           sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT python3 desktop/src/test/fixtures/linux-network.py
       - uses: actions/upload-artifact@v4
         with:

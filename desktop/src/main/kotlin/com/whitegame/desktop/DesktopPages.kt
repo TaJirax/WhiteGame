@@ -1,14 +1,16 @@
 package com.whitegame.desktop
 
 import java.awt.BorderLayout
+import java.awt.Color
 import java.awt.Dimension
-import java.text.NumberFormat
+import java.awt.Font
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTextArea
 import javax.swing.JTextField
+import javax.swing.SwingUtilities
 
 internal class DesktopPages(
     private val ui: DesktopStyle,
@@ -23,18 +25,21 @@ internal class DesktopPages(
     private val selected get() = model.profiles.firstOrNull { it.id == model.selectedId }
     private val canTestProfiles get() = idle && !model.phase.isLive && model.phase != DesktopPhase.DISCONNECTING
 
-    fun connect(openTunnels: () -> Unit, observeUptime: (JLabel) -> Unit): JComponent {
+    fun connect(
+        openTunnels: () -> Unit,
+        observeUptime: (JLabel) -> Unit,
+        observeSession: ((DesktopState) -> Unit) -> Unit
+    ): JComponent {
         val ready = model.phase == DesktopPhase.CONNECTED
         val isLive = model.phase.isLive
         val activeProfile = model.profiles.firstOrNull { it.id == model.activeId }
-        val measured = model.latencyHistory.filterNotNull()
-        val latest = model.latencyHistory.lastOrNull()
         val stateTrace = if (ready) ui.trace else ui.trace2
+        val latency = ui.label("", ui.readout)
         val connectionTitle = if (ready) {
             ui.split(
                 ui.column(
                     ui.legend("Latency"),
-                    ui.label(metric(latest, "ms"), ui.readout)
+                    latency
                 ),
                 ui.column(ui.legend("Uptime"), ui.label(uptime(model.connectionSince), ui.mono).also(observeUptime))
             )
@@ -44,13 +49,45 @@ internal class DesktopPages(
                 ui.paragraph(model.connectionMessage, rows = 2)
             )
         }
-        val traceLegend = if (measured.isEmpty()) "Latency" else
-            "Min ${metric(measured.minOrNull(), "ms")} · Avg ${metric(measured.average(), "ms")} · Max ${metric(measured.maxOrNull(), "ms")}"
+        val traceLegend = ui.legend("Latency")
+        var previousSamples: List<Double?>? = null
+        val trace = ui.latencyTrace { previousSamples.orEmpty() }
+        val session = JPanel(BorderLayout()).apply { isOpaque = false }
+        var previousSession: List<DesktopField>? = null
+        fun updateSession(state: DesktopState) {
+            val samples = state.latencyHistory
+            if (samples != previousSamples) {
+                previousSamples = samples
+                val measured = samples.filterNotNull()
+                latency.text = metric(samples.lastOrNull(), "ms")
+                traceLegend.text = if (measured.isEmpty()) "LATENCY" else
+                    "MIN ${metric(measured.minOrNull(), "ms")} · AVG ${metric(measured.average(), "ms")} · MAX ${metric(measured.maxOrNull(), "ms")}"
+                trace.repaint()
+            }
+            val counters = state.session.ifEmpty {
+                listOf(
+                    DesktopField("Handshake", "None yet"),
+                    DesktopField("Downloaded", "0 B"),
+                    DesktopField("Uploaded", "0 B"),
+                    DesktopField("Endpoint", activeProfile?.endpoint ?: "—"),
+                    DesktopField("DNS override", state.preferredDns ?: "System")
+                )
+            }
+            if (counters != previousSession) {
+                previousSession = counters
+                session.removeAll()
+                session.add(ui.table(counters), BorderLayout.CENTER)
+                session.revalidate()
+                session.repaint()
+            }
+        }
+        updateSession(model)
+        observeSession(::updateSession)
         val instrument = ui.box(ui.column(
             ui.legend("●   ${model.phase.label}", stateTrace),
             connectionTitle,
-            ui.latencyTrace(model.latencyHistory),
-            ui.legend(traceLegend)
+            trace,
+            traceLegend
         ), instrument = true)
 
         val connectAction = when {
@@ -86,15 +123,6 @@ internal class DesktopPages(
                 ))
             )
         }
-        val session = model.session.ifEmpty {
-            listOf(
-                DesktopField("Handshake", "None yet"),
-                DesktopField("Downloaded", "0 B"),
-                DesktopField("Uploaded", "0 B"),
-                DesktopField("Endpoint", activeProfile?.endpoint ?: "—"),
-                DesktopField("DNS override", model.preferredDns ?: "System")
-            )
-        }
         val recommendation = model.suggestedDns?.let {
             ui.box(ui.split(
                 ui.column(ui.legend("Recommended DNS"), ui.label(it.name, ui.subtitle),
@@ -114,7 +142,7 @@ internal class DesktopPages(
             ui.column(instrument, connectAction, networkOptimizer, gap = DesktopSpace.md),
             ui.column(
                 ui.section("Session", "Starts when a tunnel comes up"),
-                ui.table(session),
+                session,
                 ui.spacer(DesktopSpace.sm),
                 ui.section("Connection options"),
                 if (DesktopPlatform.linux) ui.notice("WireGuard and AmneziaWG use the installed Linux tunnel tools.")
@@ -224,20 +252,11 @@ internal class DesktopPages(
         ))
     }
 
-    fun network(tab: DesktopNetworkTab, openTab: (DesktopNetworkTab) -> Unit): JComponent {
-        val bar = ui.box(
-            ui.grid(*DesktopNetworkTab.entries.map { destination ->
-                ui.tab(destination.label, "", tab == destination) { openTab(destination) }
-            }.toTypedArray()),
-            padded = false
-        )
-        val content = when (tab) {
-            DesktopNetworkTab.DNS -> dns()
-            DesktopNetworkTab.CONFIGS -> configs()
-            DesktopNetworkTab.GAMES -> games()
-            DesktopNetworkTab.SPEED -> speed()
-        }
-        return ui.column(bar, content, gap = DesktopSpace.md)
+    fun network(tab: DesktopNetworkTab): JComponent = when (tab) {
+        DesktopNetworkTab.DNS -> dns()
+        DesktopNetworkTab.CONFIGS -> configs()
+        DesktopNetworkTab.GAMES -> games()
+        DesktopNetworkTab.SPEED -> speed()
     }
 
     private fun dns(): JComponent = desktopDnsPage(ui, model, drafts, dialogs, dispatch)
@@ -264,10 +283,10 @@ internal class DesktopPages(
                 saveButton(DesktopReportKind.CONFIGS, model.configTests.isNotEmpty())
             )
         )
-        val results = if (model.configTests.isEmpty()) ui.notice("Measured profiles will appear here with their speed and ping.")
-        else ui.column(
+        val results = ui.column(
             ui.section("Config results"),
-            *model.configTests.map { measurement(it, forceBandwidth = true, extra = copyButton(it)) }.toTypedArray()
+            *model.configTests.map { measurement(it, forceBandwidth = true, extra = copyButton(it)) }
+                .ifEmpty { listOf(ui.notice("Run a profile test to see its latency, download and upload.")) }.toTypedArray()
         )
         return twoColumns(left, results)
     }
@@ -288,13 +307,15 @@ internal class DesktopPages(
                 saveButton(DesktopReportKind.SPEED, model.speed != null)
             )
         )
-        val result = model.speed ?: DesktopMeasurement("speed", "Speed results")
-        return twoColumns(actions, measurement(result, forceBandwidth = true, extra = model.speed?.let(::copyButton)))
+        val result = model.speed?.let {
+            measurement(it, forceBandwidth = true, extra = if (it.status == "Measuring") null else copyButton(it))
+        } ?: ui.notice("Run a speed test to see this connection’s latency, download and upload.")
+        return twoColumns(actions, ui.column(ui.section("Speed results"), result))
     }
 
     private fun games(): JComponent {
         val search = ui.field(drafts.gameSearch).apply { name = "game-search" }
-        val list = JPanel(BorderLayout()).apply { isOpaque = false }
+        val list = DesktopScrollContent().apply { isOpaque = false }
         val installedCount = model.games.count(DesktopGame::installed)
         fun updateMatches() {
             val keyword = search.text.trim()
@@ -316,9 +337,21 @@ internal class DesktopPages(
             list.revalidate()
             list.repaint()
         }
+        val gameList = ui.scroll(list, height = 300).apply { name = "game-browser" }
+        val previousScroll = drafts.gameScrollPosition
+        SwingUtilities.invokeLater {
+            if (!gameList.isShowing) return@invokeLater
+            gameList.verticalScrollBar.value = previousScroll
+            gameList.verticalScrollBar.addAdjustmentListener { drafts.gameScrollPosition = it.value }
+        }
+        fun searchFromTop() {
+            updateMatches()
+            gameList.verticalScrollBar.value = 0
+            drafts.gameScrollPosition = 0
+        }
         search.onEdit {
             drafts.gameSearch = it
-            updateMatches()
+            searchFromTop()
         }
         updateMatches()
         val catalog = ui.field(drafts.catalog ?: model.catalogUrl).apply {
@@ -331,21 +364,25 @@ internal class DesktopPages(
             ui.grid(
                 ui.button("Scan for games", primary = true, enabled = idle) {
                     drafts.installedOnly = true
+                    searchFromTop()
                     dispatch(DesktopAction.DiscoverGames)
                 },
                 ui.toggle(if (model.gamesScanned) "Installed only ($installedCount)" else "Installed only", drafts.installedOnly) {
                     drafts.installedOnly = it
-                    updateMatches()
+                    searchFromTop()
                 }
             ),
             ui.legend("Search games"),
             search,
-            list
+            if (model.gamesScanned) ui.label("$installedCount installed games · ${model.games.size} titles", ui.small, ui.trace2)
+            else ui.label("Installed games have not been scanned yet", ui.small, ui.trace2),
+            gameList
         )
         val results = ui.column(
-            ui.section("Game results", "HTTPS measurements to catalog endpoints"),
+            ui.section("Game results", "HTTPS connection time to publisher endpoints"),
             saveButton(DesktopReportKind.GAMES, model.gameTests.isNotEmpty()),
-            *model.gameTests.map { measurement(it, extra = copyButton(it)) }.toTypedArray(),
+            *model.gameTests.map { measurement(it, latencyLabel = "HTTPS delay", extra = copyButton(it)) }
+                .ifEmpty { listOf(ui.notice("Choose Test latency or Compare routes on a game to see its results.")) }.toTypedArray(),
             ui.spacer(DesktopSpace.sm),
             ui.section("Catalog settings"),
             ui.legend("Catalog URL"),
@@ -357,8 +394,8 @@ internal class DesktopPages(
 
     private fun game(game: DesktopGame): JComponent {
         val group = ui.column(
-            ui.split(ui.label(game.title, ui.subtitle), ui.legend(if (game.installed) "Installed" else "Catalog")),
-            *listOfNotNull(game.detail.takeIf(String::isNotBlank)?.let { ui.paragraph(it, rows = 1) }).toTypedArray(),
+            ui.split(ui.resultText(game.title, ui.subtitle, ui.trace), ui.legend(if (game.installed) "Installed" else "Catalog")),
+            *listOfNotNull(game.detail.takeIf(String::isNotBlank)?.let { ui.resultText(it) }).toTypedArray(),
             if (game.canTest) ui.grid(
                 ui.button("Test latency", enabled = idle) { dispatch(DesktopAction.TestGame(game.id)) },
                 ui.button("Compare routes", enabled = idle) { dispatch(DesktopAction.CompareGame(game.id)) }
@@ -369,15 +406,17 @@ internal class DesktopPages(
 
     fun device(loadReport: (DesktopReport) -> Unit): JComponent {
         val state = ui.column(
-            ui.section("PC and network"),
+            ui.section("Device scan"),
             ui.button("Run device scan", primary = true, enabled = idle) { dispatch(DesktopAction.InspectDevice) },
-            if (model.device.isEmpty()) ui.notice("Inspect this PC to see its network and hardware details.") else ui.table(model.device),
             ui.spacer(DesktopSpace.sm),
-            ui.section("Network path"),
+            ui.section("Network path", "TCP probes to public resolvers"),
             if (model.devicePath.isEmpty()) ui.notice("Run the device scan to measure the current connection.") else ui.table(model.devicePath),
             ui.spacer(DesktopSpace.sm),
+            ui.section("PC details"),
+            if (model.device.isEmpty()) ui.notice("Run the device scan to see hardware and adapter information.") else deviceDetails(model.device),
+            ui.spacer(DesktopSpace.sm),
             ui.section("Engines"),
-            if (model.engines.isEmpty()) ui.notice("Inspect this PC to check available tunnel engines.") else ui.table(model.engines)
+            if (model.engines.isEmpty()) ui.notice("Run the device scan to check available tunnel engines.") else deviceDetails(model.engines)
         )
         val reports = ui.column(
             ui.section("Saved reports", "DNS, configs, games and speed tests"),
@@ -398,28 +437,38 @@ internal class DesktopPages(
         return twoColumns(state, reports)
     }
 
+    private fun deviceDetails(rows: List<DesktopField>) = ui.box(ui.column(
+        *rows.flatMapIndexed { index, row ->
+            val field = ui.column(ui.legend(row.label), ui.resultText(row.value, ui.mono, ui.trace), gap = DesktopSpace.xs)
+            if (index == 0) listOf(field) else listOf(ui.hairline(), field)
+        }.toTypedArray()
+    ))
+
     private fun measurement(
         result: DesktopMeasurement,
         latencyLabel: String = "HTTPS ping",
         forceBandwidth: Boolean = false,
         extra: JComponent? = null
     ): JComponent {
+        val missing = if (result.status == "Measuring") "Pending" else "Unavailable"
         val fields = buildList {
-            add(DesktopField(latencyLabel, metric(result.latencyMs, "ms")))
+            add(DesktopField(latencyLabel, measurementValue(result.latencyMs, "ms", missing)))
             if (forceBandwidth || result.downloadMbps != null || result.uploadMbps != null) {
-                add(DesktopField("Download", metric(result.downloadMbps, "Mbps")))
-                add(DesktopField("Upload", metric(result.uploadMbps, "Mbps")))
+                add(DesktopField("Download", measurementValue(result.downloadMbps, "Mbps", missing)))
+                add(DesktopField("Upload", measurementValue(result.uploadMbps, "Mbps", missing)))
             }
-            if (forceBandwidth || result.jitterMs != null) add(DesktopField("Jitter", metric(result.jitterMs, "ms")))
-            if (result.lossPercent != null) add(DesktopField("Failed attempts", metric(result.lossPercent, "%")))
+            if (forceBandwidth || result.jitterMs != null) add(DesktopField("Jitter", measurementValue(result.jitterMs, "ms", missing)))
+            if (result.lossPercent != null) add(DesktopField("Failed probes", measurementValue(result.lossPercent, "%")))
         }
-        val headline = ui.split(ui.label(result.name, ui.subtitle), ui.legend(result.status))
-        val subtitle = listOf(result.protocol, result.endpoint).filter(String::isNotBlank).joinToString(" · ")
+        val name = ui.resultText(result.name, ui.subtitle, ui.trace)
+        val headline = if (result.status.isBlank()) name else ui.column(name, ui.resultText(result.status), gap = DesktopSpace.xs)
+        val subtitle = listOf(result.protocol, result.endpoint.takeUnless { it == result.name }.orEmpty())
+            .filter(String::isNotBlank).joinToString(" · ")
         return ui.box(ui.column(*listOfNotNull(
             headline,
-            subtitle.takeIf(String::isNotBlank)?.let { ui.label(it, ui.monoSmall, ui.trace2) },
+            subtitle.takeIf(String::isNotBlank)?.let { ui.resultText(it, ui.monoSmall) },
             ui.table(fields),
-            result.detail.takeIf(String::isNotBlank)?.let { ui.paragraph(it, rows = 2) },
+            result.detail.takeIf(String::isNotBlank)?.let { ui.resultText(it) },
             extra
         ).toTypedArray()))
     }
@@ -431,6 +480,8 @@ internal class DesktopPages(
 
     private fun asText(result: DesktopMeasurement): String = buildList {
         add(result.name)
+        if (result.status.isNotBlank()) add("Status: ${result.status}")
+        if (result.protocol.isNotBlank()) add("Protocol: ${result.protocol}")
         if (result.endpoint.isNotBlank()) add("Endpoint: ${result.endpoint}")
         result.latencyMs?.let { add("Latency: ${metric(it, "ms")}") }
         result.jitterMs?.let { add("Jitter: ${metric(it, "ms")}") }
@@ -462,9 +513,21 @@ internal class DesktopPages(
         gap = DesktopSpace.xl
     )
 
-    private fun metric(value: Double?, unit: String): String {
-        if (value == null || !value.isFinite()) return "—"
-        val rendered = NumberFormat.getNumberInstance().apply { maximumFractionDigits = 2 }.format(value)
-        return if (unit == "%") "$rendered%" else "$rendered $unit"
+    private fun metric(value: Double?, unit: String): String = measurementValue(value, unit)
+}
+
+/** Wrap result text at the minimum desktop column width and scroll longer diagnostic messages. */
+internal fun DesktopStyle.resultText(value: String, font: Font = small, foreground: Color = trace2): JComponent {
+    val text = paragraph(value, rows = 0, foreground = foreground).apply {
+        this.font = font
+        columns = 0
+        setSize(300, Short.MAX_VALUE.toInt())
     }
+    val lineHeight = text.getFontMetrics(font).height
+    val height = text.preferredSize.height.coerceAtLeast(lineHeight)
+    text.maximumSize = Dimension(Int.MAX_VALUE, height)
+    return if (height > lineHeight * 4) scroll(text, height = lineHeight * 4).apply {
+        text.isFocusable = true
+        horizontalScrollBarPolicy = javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+    } else text
 }

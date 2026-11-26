@@ -1,5 +1,7 @@
 package com.whitegame.desktop
 
+import java.text.NumberFormat
+
 internal fun interface DesktopActions {
     fun dispatch(action: DesktopAction)
 }
@@ -86,6 +88,13 @@ internal data class DesktopMeasurement(
     val status: String = "",
     val canAdd: Boolean = false
 )
+
+internal fun measurementValue(value: Double?, unit: String, unavailable: String = "—"): String {
+    if (value == null || !value.isFinite()) return unavailable
+    val number = NumberFormat.getNumberInstance().apply { maximumFractionDigits = 2 }
+    val formatted = if (value > 0 && value < 0.01) "<${number.format(0.01)}" else number.format(value)
+    return if (unit == "%") "$formatted%" else "$formatted $unit"
+}
 
 internal data class DesktopGame(
     val id: String,

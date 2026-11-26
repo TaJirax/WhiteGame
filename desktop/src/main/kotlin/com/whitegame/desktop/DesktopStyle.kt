@@ -326,7 +326,7 @@ internal class DesktopStyle(val dark: Boolean) {
             }
         }
 
-    fun latencyTrace(samples: List<Double?>) = object : JComponent() {
+    fun latencyTrace(samples: () -> List<Double?>) = object : JComponent() {
         override fun getPreferredSize() = Dimension(200, 150)
         override fun getMaximumSize() = Dimension(Int.MAX_VALUE, preferredSize.height)
         override fun paintComponent(g: Graphics) {
@@ -339,7 +339,7 @@ internal class DesktopStyle(val dark: Boolean) {
             brush.drawLine(0, (top + bottom) / 2, width, (top + bottom) / 2)
             brush.stroke = BasicStroke(2f)
             brush.color = trace
-            val points = samples.takeLast(48)
+            val points = samples().takeLast(48)
             val scale = maxOf(120.0, points.filterNotNull().maxOrNull() ?: 0.0)
             for ((index, sample) in points.withIndex()) {
                 if (sample == null) continue

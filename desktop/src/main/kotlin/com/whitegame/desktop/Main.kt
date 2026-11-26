@@ -1,13 +1,16 @@
 package com.whitegame.desktop
 
+import java.awt.RenderingHints
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 import javax.swing.JOptionPane
 import javax.swing.SwingUtilities
+import javax.swing.UIManager
 
 fun main() {
     SwingUtilities.invokeLater {
+        UIManager.put(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
         try {
             val directory = Files.createDirectories(DesktopPlatform.dataDirectory())
             val instanceFile = FileChannel.open(

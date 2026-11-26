@@ -1,11 +1,11 @@
 # WhiteGame desktop
 
 WhiteGame for Windows targets x64 editions of Windows 10 and 11. Extract
-`WhiteGame-Windows-x64-7.3.0.zip` and open `WhiteGame.exe` from the extracted
+`WhiteGame-Windows-x64-7.3.1.zip` and open `WhiteGame.exe` from the extracted
 folder. The package includes Java, Xray 26.11.9, and Wintun. Keep the folders
 alongside the executable. [Xray release](https://github.com/XTLS/Xray-core/releases/tag/v26.11.9)
 
-On x86-64 Linux, extract `WhiteGame-Linux-x64-7.3.0.tar.gz` and run
+On x86-64 Linux, extract `WhiteGame-Linux-x64-7.3.1.tar.gz` and run
 `WhiteGame/bin/WhiteGame`. The archive includes Java and the Linux Xray binary.
 Settings and profiles are saved under `$XDG_DATA_HOME/whitegame`, with
 `~/.local/share/whitegame` as the default.
@@ -81,7 +81,7 @@ On x64 Windows with JDK 17, run these commands from the repository root.
 On x86-64 Linux with JDK 17, run `bash desktop/package-linux.sh` from the root.
 
 The packaging scripts check the Xray archive's SHA-256 digest and write the
-portable ZIP to `dist\WhiteGame-Windows-x64-7.3.0.zip`. The release workflow
-also builds `dist/WhiteGame-Linux-x64-7.3.0.tar.gz` and publishes both packages
+portable ZIP to `dist\WhiteGame-Windows-x64-7.3.1.zip`. The release workflow
+also builds `dist/WhiteGame-Linux-x64-7.3.1.tar.gz` and publishes both packages
 after the native DNS and WireGuard checks pass on disposable Windows and Linux
 runners. Windows also runs an Xray TUN integration test.

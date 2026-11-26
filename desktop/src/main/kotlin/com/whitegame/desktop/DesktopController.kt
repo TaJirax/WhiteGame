@@ -96,7 +96,7 @@ internal class DesktopController(
             }
             else -> Unit
         }
-        if (operation?.isActive == true) {
+        if (operation?.isActive == true && action !is DesktopAction.Theme) {
             if (action is DesktopAction.SaveProfile) action.complete?.invoke("Wait for the current operation to finish.")
             return
         }
@@ -295,12 +295,20 @@ internal class DesktopController(
     }
 
     private suspend fun speedTest() {
-        update { copy(speed = null) }
-        val measured = DesktopProbes.speed { stage, partial ->
-            progress(stage.label)
-            update { copy(speed = partial.row("speed", "Current route")) }
+        update { copy(speed = DesktopMeasurement("speed", "Current route", status = "Measuring")) }
+        try {
+            val measured = DesktopProbes.speed { stage, partial ->
+                progress(stage.label)
+                update { copy(speed = partial.row("speed", "Current route", measuring = true)) }
+            }
+            update { copy(speed = measured.row("speed", "Current route")) }
+        } catch (e: CancellationException) {
+            update { copy(speed = speed?.copy(status = "Stopped")) }
+            throw e
+        } catch (e: Exception) {
+            update { copy(speed = speed?.copy(status = "Failed", detail = e.message ?: "The speed test could not finish.")) }
+            throw e
         }
-        update { copy(speed = measured.row("speed", "Current route")) }
     }
 
     private suspend fun testConfigs(input: String) {
@@ -332,8 +340,10 @@ internal class DesktopController(
             require(normalizedDnsAddress(ip) != null) { "Enter numeric IPv4 or IPv6 resolver addresses separated by spaces or commas." }
             DesktopDnsResolver("extra-$index", "Extra resolver", ip)
         }
-        val selected = if (action.resolverId == null) state.resolvers + extra
-            else state.resolvers.filter { it.id == action.resolverId }
+        val selected = if (action.resolverId == null) state.resolvers + extra else listOfNotNull(
+            state.resolvers.firstOrNull { it.id == action.resolverId }
+                ?: state.dns.firstNotNullOfOrNull { it.savedDnsResolver()?.takeIf { row -> row.id == action.resolverId } }
+        )
         require(selected.isNotEmpty()) { "Choose a DNS resolver to test." }
         updateDns(measureResolvers(selected.dnsTargets()), merge = action.resolverId != null)
     }
@@ -452,17 +462,32 @@ internal class DesktopController(
                 if (!state.phase.isLive) state.profiles.take(4).forEach { add(ProbeRoute.Config(it.name, it.config)) }
             }
         }
-        val result = DesktopProbes.game(game.hosts, routes) { measured -> presentGameTests(game, measured) }
+        update { copy(gameTests = emptyList()) }
+        val result = try {
+            DesktopProbes.game(game.hosts, routes) { measured -> presentGameTests(game, measured, measuring = true) }
+        } catch (e: CancellationException) {
+            update { copy(gameTests = gameTests.map { it.copy(status = "Stopped") }) }
+            throw e
+        }
         presentGameTests(game, result)
-        val message = result.recommendedRoute?.let { "Fastest measured route · $it" } ?: "No game endpoint answered."
+        val message = result.recommendedRoute?.let { "Best measured route · $it" } ?: "No game endpoint answered."
         notice(if (compare && state.phase.isLive) "$message. Disconnect the tunnel to compare saved profiles." else message)
     }
 
-    private fun presentGameTests(game: WindowsGame, result: GameTest) = update {
+    private fun presentGameTests(game: WindowsGame, result: GameTest, measuring: Boolean = false) = update {
         copy(gameTests = result.routes.mapIndexed { index, route ->
+            val status = when {
+                measuring -> "Measuring"
+                route.stats.successful > 0 -> "Measured"
+                else -> "No response"
+            }
+            val detail = buildString {
+                append("${game.title} · ${route.stats.successful} of ${route.stats.attempts} probes responded")
+                if (!measuring && route.error != null) append("\n${route.error}")
+            }
             DesktopMeasurement("game-$index", route.label, result.host, "HTTPS", route.stats.latencyMs?.toDouble(),
                 route.stats.jitterMs?.toDouble(), route.stats.lossPct?.toDouble(),
-                detail = route.error ?: game.title, status = if (route.stats.successful > 0) "Measured" else "Unavailable")
+                detail = detail, status = status)
         })
     }
 
@@ -551,9 +576,10 @@ internal class DesktopController(
             progress("Sampling the current network path…")
             val route = samplePath()
             update { copy(devicePath = listOf(
-                DesktopField("Connection", route.status),
-                DesktopField("Average connection", route.latencyMs?.let { "%.1f ms".format(it) } ?: "—"),
-                DesktopField("Failed attempts", route.lossPercent?.let { "%.0f%%".format(it) } ?: "—"),
+                DesktopField("Connection quality", route.status),
+                DesktopField("Average TCP delay", measurementValue(route.latencyMs, "ms", "Unavailable")),
+                DesktopField("Jitter", measurementValue(route.jitterMs, "ms", "Unavailable")),
+                DesktopField("Failed probes", measurementValue(route.lossPercent, "%", "Unavailable")),
                 DesktopField("Targets", "Cloudflare, Google and Quad9")
             ), notice = "Device scan complete.") }
         }
@@ -643,10 +669,19 @@ internal class DesktopController(
         SpeedStage.UPLOAD -> "Measuring upload speed…"
     }
 
-    private fun CloudflareSpeedResult.row(id: String, name: String, endpoint: String = "", protocol: String = "HTTPS") =
-        DesktopMeasurement(id, name, endpoint, protocol, latencyMs, jitterMs,
+    private fun CloudflareSpeedResult.row(
+        id: String, name: String, endpoint: String = "", protocol: String = "HTTPS", measuring: Boolean = false
+    ): DesktopMeasurement {
+        val status = when {
+            measuring -> "Measuring"
+            latencyMs != null && downloadMbps != null && uploadMbps != null -> "Complete"
+            latencyMs != null || downloadMbps != null || uploadMbps != null -> "Partial result"
+            else -> "No response"
+        }
+        return DesktopMeasurement(id, name, endpoint, protocol, latencyMs, jitterMs,
             downloadMbps = downloadMbps, uploadMbps = uploadMbps,
-            status = if (latencyMs == null) "Waiting" else "Measured")
+            status = status)
+    }
 
     private fun progress(text: String) = update { copy(busy = text) }
     private fun notice(text: String) = update { copy(notice = text) }
