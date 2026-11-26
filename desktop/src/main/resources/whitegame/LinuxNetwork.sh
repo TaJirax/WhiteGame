@@ -10,6 +10,13 @@ shift 3
 
 if [[ $operation == tunnel ]]; then
     [[ $target =~ ^wg[0-9a-f]{10}$ ]] || exit 2
+    dns_servers=()
+    while (( $# )) && [[ $1 != -- ]]; do
+        dns_servers+=("$1")
+        shift
+    done
+    if (( $# )); then shift; fi
+    dns_domains=("$@")
     workspace=$(mktemp -d /run/whitegame.XXXXXXXX)
     config="$workspace/$target.conf"
     connected=0
@@ -27,8 +34,32 @@ if [[ $operation == tunnel ]]; then
     trap 'exit 1' HUP INT TERM
     IFS= read -r payload
     printf '%s' "$payload" | base64 --decode > "$config"
+    resolved=
+    if (( ${#dns_servers[@]} || ${#dns_domains[@]} )) &&
+        candidate=$(command -v resolvectl) && "$candidate" status >/dev/null 2>&1; then
+        resolved=$candidate
+        # The generated config has a single DNS line. Keep it for resolvconf on
+        # distributions without systemd-resolved.
+        sed -i '/^DNS = /d' -- "$config"
+    fi
     "$engine" up "$config" >&2
     connected=1
+    if [[ -n $resolved ]]; then
+        # Wait for systemd-resolved to learn about the new kernel link.
+        for ((attempt = 0; attempt < 30; attempt++)); do
+            if "$resolved" -- dns "$target" >/dev/null 2>&1; then break; fi
+            sleep 0.1
+        done
+        if (( ${#dns_domains[@]} )); then
+            "$resolved" -- default-route "$target" no >&2
+            "$resolved" -- domain "$target" "${dns_domains[@]}" >&2
+        else
+            "$resolved" -- domain "$target" '~.' >&2
+        fi
+        if (( ${#dns_servers[@]} )); then
+            "$resolved" -- dns "$target" "${dns_servers[@]}" >&2
+        fi
+    fi
 elif [[ $operation == dns ]]; then
     [[ $target =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,14}$ ]] || exit 2
     current_dns() { "$engine" dns "$target" | sed 's/^[^:]*:[[:space:]]*//'; }

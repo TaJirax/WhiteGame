@@ -39,8 +39,9 @@ internal class LinuxNetwork : DesktopNetwork {
         val adapter = "wg" + UUID.randomUUID().toString().replace("-", "").take(10)
         disconnect()
         val payload = Base64.getEncoder().encodeToString(config.toConfText().toByteArray(Charsets.UTF_8))
-        val worker = startWorker(listOf("tunnel", engine.toString(), adapter), payload,
-            "Linux could not start the tunnel. Check administrator approval, wg-quick, and your profile.")
+        val dnsArguments = config.iface.dnsServers + listOf("--") + config.iface.dnsSearchDomains
+        val worker = startWorker(listOf("tunnel", engine.toString(), adapter) + dnsArguments, payload,
+            "Linux could not start the tunnel. Check administrator approval, the tunnel tool, and the profile's DNS settings.")
         tunnel = Tunnel(adapter, name, worker)
     }
 

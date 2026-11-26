@@ -32,8 +32,9 @@ and reports are saved under `%LOCALAPPDATA%\WhiteGame`.
 - Cloudflare speed tests, DNS scans, game measurements, and isolated Xray,
   WireGuard, and WARP profile tests use the same measurement code as Windows.
 - Connect standard WireGuard with `wg-quick`. AmneziaWG requires
-  `awg-quick` and its kernel or userspace tunnel engine. A tunnel profile that
-  sets DNS also needs the `resolvconf` integration used by the installed tool.
+  `awg-quick` and its kernel or userspace tunnel engine. WhiteGame applies
+  tunnel DNS to the tunnel adapter through `systemd-resolved` when available.
+  Systems using `resolvconf` use the installed tunnel tool's DNS integration.
   [WireGuard configuration reference](https://git.zx2c4.com/wireguard-tools/about/src/man/wg-quick.8)
 - **Use DNS** temporarily changes the default-route adapter through
   `systemd-resolved`. **Restore system DNS** or closing WhiteGame restores
@@ -81,5 +82,6 @@ On x86-64 Linux with JDK 17, run `bash desktop/package-linux.sh` from the root.
 
 The packaging scripts check the Xray archive's SHA-256 digest and write the
 portable ZIP to `dist\WhiteGame-Windows-x64-7.3.0.zip`. The release workflow
-also builds `dist/WhiteGame-Linux-x64-7.3.0.tar.gz` and publishes both
-packages after the Linux build and the disposable Windows VPN and DNS tests pass.
+also builds `dist/WhiteGame-Linux-x64-7.3.0.tar.gz` and publishes both packages
+after the native DNS and WireGuard checks pass on disposable Windows and Linux
+runners. Windows also runs an Xray TUN integration test.

@@ -84,17 +84,18 @@ changes and a filtered build can otherwise ship the previous run's ABIs.
 ## Releasing
 
 CI builds each release. Push a branch prefixed with `verify/` to run the
-Android build and Windows integration tests before publishing. Once those
-checks pass, tag the commit with the matching Android and Windows version and
+Android build and desktop integration tests before publishing. Once those
+checks pass, tag the commit with the matching Android and desktop version and
 push the tag.
 
 ```bash
 git tag v7.3.0 && git push origin v7.3.0
 ```
 
-The workflow runs the Windows VPN and DNS integration tests in a disposable
-runner. It publishes the tested Windows x64 ZIP and the universal and per-ABI
-Android APKs together after verifying the Android signing certificate.
+The workflow checks DNS apply and restore and authenticated WireGuard traffic on
+disposable Windows and Linux runners. It also checks Xray TUN routing and cleanup
+on Windows. After verifying the Android signing certificate, it publishes the
+tested Windows x64 ZIP and Linux x64 tarball alongside the Android APKs.
 [Android signing secrets](keystore/README.md)
 
 Release signing material is **not** in this repository — see
